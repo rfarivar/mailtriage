@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Amazon <order-update@amazon.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Your Amazon.com order has shipped",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<your-amazon.-uxp25noz@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Your order #112-4455667-8899001 has shipped.\n\n        Items:\n        - USB-C Hub (Qty 1)\n\n        Estimated delivery: Tue, Feb 24\n        If you did not place this order, review your account activity in the Amazon app/website."
+  },
+  "expect": {
+    "bucket_in": [
+      "transactional"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

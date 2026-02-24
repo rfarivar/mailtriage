@@ -1,0 +1,16 @@
+{
+  "email": {
+    "from": "Eric <eric@illinois.edu>",
+    "to": "Reza <reza@illinois.edu>",
+    "subject": "Quick review on the draft by tomorrow?",
+    "date": "Fri, 20 Feb 2026 09:10:00 -0800",
+    "message_id": "<good-5678@illinois.edu>",
+    "body_excerpt": "Hi Reza, can you review the attached draft and send comments by tomorrow noon?"
+  },
+  "expect": {
+    "bucket_in": ["needs_attention"],
+    "action": "keep_in_inbox",
+    "min_confidence": 0.70,
+    "auto_move_ok": false
+  }
+}

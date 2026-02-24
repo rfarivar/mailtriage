@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Alaska Airlines <itinerary@alaskaair.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Itinerary change: Flight time updated",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<itinerary-ch-ic70dfm3@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Your itinerary has changed.\n\n        Flight: AS 123\n        New departure: 6:15 PM (was 5:40 PM)\n        Date: Mar 6\n\n        Review your trip details in the app or website."
+  },
+  "expect": {
+    "bucket_in": [
+      "calendar_or_travel"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

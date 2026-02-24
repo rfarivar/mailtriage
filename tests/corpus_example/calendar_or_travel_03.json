@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Hotel Reservations <reservations@hotel-example.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Booking confirmation: Seattle stay",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<booking-conf-2v2eg6iq@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Booking confirmed.\n\n        Hotel: Downtown Seattle Hotel\n        Check-in: Mar 6\n        Check-out: Mar 8\n        Confirmation: SEAT-88421\n\n        If you need to modify your reservation, use the link in your confirmation page."
+  },
+  "expect": {
+    "bucket_in": [
+      "calendar_or_travel"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

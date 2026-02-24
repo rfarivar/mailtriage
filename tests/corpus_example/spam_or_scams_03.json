@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Delivery Notice <noreply@shipments-track.net>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "We couldn't deliver your package (fee required)",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<we-couldn't--uyrskbv1@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "We attempted delivery but require a small redelivery fee.\n\n        Pay the fee here to schedule redelivery:\n        http://shipments-track.net/pay\n\n        If unpaid, your package will be returned."
+  },
+  "expect": {
+    "bucket_in": [
+      "spam_or_scams"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "quarantine"
+  }
+}

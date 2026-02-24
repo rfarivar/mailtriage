@@ -1,0 +1,57 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.pkl
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+ENV/
+env/
+
+# ---- IDEs / editors ----
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ---- OS / misc ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---- Secrets / config ----
+config.yaml
+*.env
+.env
+.env.*
+
+# ---- Logs / artifacts ----
+logs/
+*.log
+*.jsonl
+
+# ---- Local state / databases ----
+*.db
+*.sqlite
+*.sqlite3
+
+# ---- Local mail dumps (if you add them) ----
+*.eml
+mail_samples/
+
+# ---- Test corpus (if you add it) ----
+tests/corpus_private/

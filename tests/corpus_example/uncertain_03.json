@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Support <support@vendor.example>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Ticket update",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<ticket-updat-76rtdmfl@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Your ticket has been updated. Please see the portal for details."
+  },
+  "expect": {
+    "bucket_in": [
+      "uncertain"
+    ],
+    "max_confidence": 0.69,
+    "auto_move_ok": false,
+    "action": "do_nothing"
+  }
+}

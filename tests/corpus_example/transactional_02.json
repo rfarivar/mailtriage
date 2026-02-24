@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "City Water Utility <billing@citywater.gov>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Receipt: Payment received for water bill",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<receipt:-pay-pvyfljhk@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Payment received.\n\n        Amount: $86.42\n        Confirmation: CWU-2398841\n        Service period: Jan 15 – Feb 14\n\n        Thank you for your payment."
+  },
+  "expect": {
+    "bucket_in": [
+      "transactional"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

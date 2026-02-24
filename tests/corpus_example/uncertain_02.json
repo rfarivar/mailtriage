@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "noreply@service.example",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Notification",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<notification-ndvruz3t@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "This is an automated notification regarding your recent activity."
+  },
+  "expect": {
+    "bucket_in": [
+      "uncertain"
+    ],
+    "max_confidence": 0.69,
+    "auto_move_ok": false,
+    "action": "do_nothing"
+  }
+}

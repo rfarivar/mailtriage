@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Dana Kim <dana.kim@illinois.edu>",
+    "to": "Reza <reza@illinois.edu>",
+    "cc": "",
+    "subject": "Can you review the rubric updates today?",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<can-you-revi-3k40vb5t@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Hi Reza,\n\n        I pushed a small update to the grading rubric and wanted a quick sanity check.\n        Could you skim the changes and reply with approval (or edits) by 4pm today?\n        It's time-sensitive because the TAs start grading this evening.\n\n        Thanks,\n        Dana"
+  },
+  "expect": {
+    "bucket_in": [
+      "needs_attention"
+    ],
+    "min_confidence": 0.7,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

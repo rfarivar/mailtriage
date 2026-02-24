@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Microsoft Account Team <account-security-noreply@account.microsoft.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Password reset requested",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<password-res-boane99d@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "A password reset was requested for your Microsoft account.\n\n        If you requested this, follow the instructions in your account security page.\n        If you did not request this, secure your account immediately by changing your password and enabling MFA."
+  },
+  "expect": {
+    "bucket_in": [
+      "security_alert"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

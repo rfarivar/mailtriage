@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Photo Gear Deals <offers@photogear.example>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Flash sale: 20% off lighting kits",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<flash-sale:--ckh9h06i@example.test>",
+    "list_id": "<photogear.offers.photogear.example>",
+    "list_unsubscribe": "<mailto:unsubscribe@photogear.example>",
+    "body_excerpt": "24-hour flash sale.\n\n        Get 20% off select softboxes and stands. Use code LIGHT20 at checkout.\n        Unsubscribe link included."
+  },
+  "expect": {
+    "bucket_in": [
+      "newsletter_or_marketing"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

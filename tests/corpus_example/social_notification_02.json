@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "GitHub <notifications@github.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "[GitHub] New issue comment on your repository",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<[github]-new-m4bltnus@example.test>",
+    "list_id": "<github.notifications.github.com>",
+    "list_unsubscribe": "<https://github.com/notifications/unsubscribe>",
+    "body_excerpt": "There is a new comment on an issue in your repository.\n\n        Repo: reza/mailtriage\n        Issue: \"Add corpus-driven tests\"\n        Comment: \"Looks good — one suggestion…\"\n\n        Manage notifications in GitHub settings."
+  },
+  "expect": {
+    "bucket_in": [
+      "social_notification"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

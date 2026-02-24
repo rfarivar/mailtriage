@@ -1,0 +1,19 @@
+{
+  "email": {
+    "from": "Big Store <deals@bigstore.com>",
+    "to": "Reza <reza@example.com>",
+    "subject": "50% off this weekend only!",
+    "date": "Fri, 20 Feb 2026 08:00:00 -0800",
+    "message_id": "<promo-1@bigstore.com>",
+    "list_unsubscribe": "<mailto:unsubscribe@bigstore.com>",
+    "list_id": "<bigstore.newsletter.bigstore.com>",
+    "body_excerpt": "Huge sale. Limited time. Shop now..."
+  },
+  "expect": {
+    "bucket_in": ["newsletter_or_marketing"],
+    "action": "move_to_folder",
+    "action_not": ["do_nothing"],
+    "min_confidence": 0.80,
+    "auto_move_ok": true
+  }
+}

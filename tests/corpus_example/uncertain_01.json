@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Pat <pat@unknown-domain.net>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Re: your request",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<re:-your-req-ajrh0oos@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Following up on your request — can you confirm the details?"
+  },
+  "expect": {
+    "bucket_in": [
+      "uncertain"
+    ],
+    "max_confidence": 0.69,
+    "auto_move_ok": false,
+    "action": "do_nothing"
+  }
+}

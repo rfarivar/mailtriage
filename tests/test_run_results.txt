@@ -1,0 +1,2021 @@
+(.venv) C:\Users\rezaf\dev\mailtriage>python -m pytest -m integration -q
+FFF.........FFFFFF...FFFFFF.                                                                                                                              [100%]
+=========================================================================== FAILURES ===========================================================================
+_________________________________________________________ test_corpus_case[calendar_or_travel_01.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/calendar_or_travel_01.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['calendar_or_travel'], actual = 'needs_attention'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [calendar_or_travel_01.json] bucket_in failed
+E         expected: ['calendar_or_travel']
+E         actual:   needs_attention
+E
+E       DEBUG:
+E       {
+E         "case": "calendar_or_travel_01.json",
+E         "expect": {
+E           "bucket_in": [
+E             "calendar_or_travel"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": false,
+E           "action": "keep_in_inbox"
+E         },
+E         "actual": {
+E           "bucket": "needs_attention",
+E           "confidence": 0.9,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "direct_request, has_deadline, event_invitation",
+E           "signals": []
+E         },
+E         "perf": {
+E           "prompt_tokens": 643,
+E           "gen_tokens": 54,
+E           "total_ms": 3720.356
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: calendar_or_travel_01.json ---
+EMAIL:
+{
+  "from": "UIUC Calendar <calendar@illinois.edu>",
+  "to": "Reza <reza@illinois.edu>",
+  "cc": "",
+  "subject": "Invitation: Weekly Capstone Sprint Review (Mon 2pm)",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<invitation:--s29onbdu@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "You have been invited to an event.\n\n        Title: Weekly Capstone Sprint Review\n        When: Mon Feb 23, 2:00–2:30 PM (PT)\n        Where: Zoom (link in calendar invite)\n\n        Please accept or decline."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "calendar_or_travel"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": false,
+  "action": "keep_in_inbox"
+}
+LLM RESULT:
+{
+  "bucket": "needs_attention",
+  "confidence": 0.9,
+  "action": "keep_in_inbox",
+  "reason": "direct_request, has_deadline, event_invitation",
+  "signals": [],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 643,
+  "gen_tokens": 54,
+  "prompt_ms": 202.9437,
+  "gen_ms": 1347.7185,
+  "total_ms": 3720.356
+}
+_________________________________________________________ test_corpus_case[calendar_or_travel_02.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/calendar_or_travel_02.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['calendar_or_travel'], actual = 'needs_attention'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [calendar_or_travel_02.json] bucket_in failed
+E         expected: ['calendar_or_travel']
+E         actual:   needs_attention
+E
+E       DEBUG:
+E       {
+E         "case": "calendar_or_travel_02.json",
+E         "expect": {
+E           "bucket_in": [
+E             "calendar_or_travel"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": false,
+E           "action": "keep_in_inbox"
+E         },
+E         "actual": {
+E           "bucket": "needs_attention",
+E           "confidence": 0.9,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "direct_request",
+E           "signals": [
+E             "direct_request",
+E             "has_deadline",
+E             "flight_update"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 632,
+E           "gen_tokens": 63,
+E           "total_ms": 1892.0153
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: calendar_or_travel_02.json ---
+EMAIL:
+{
+  "from": "Alaska Airlines <itinerary@alaskaair.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Itinerary change: Flight time updated",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<itinerary-ch-ic70dfm3@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Your itinerary has changed.\n\n        Flight: AS 123\n        New departure: 6:15 PM (was 5:40 PM)\n        Date: Mar 6\n\n        Review your trip details in the app or website."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "calendar_or_travel"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": false,
+  "action": "keep_in_inbox"
+}
+LLM RESULT:
+{
+  "bucket": "needs_attention",
+  "confidence": 0.9,
+  "action": "keep_in_inbox",
+  "reason": "direct_request",
+  "signals": [
+    "direct_request",
+    "has_deadline",
+    "flight_update"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 632,
+  "gen_tokens": 63,
+  "prompt_ms": 72.4854,
+  "gen_ms": 1551.5976,
+  "total_ms": 1892.0153
+}
+_________________________________________________________ test_corpus_case[calendar_or_travel_03.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/calendar_or_travel_03.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['calendar_or_travel'], actual = 'needs_attention'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [calendar_or_travel_03.json] bucket_in failed
+E         expected: ['calendar_or_travel']
+E         actual:   needs_attention
+E
+E       DEBUG:
+E       {
+E         "case": "calendar_or_travel_03.json",
+E         "expect": {
+E           "bucket_in": [
+E             "calendar_or_travel"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "needs_attention",
+E           "confidence": 0.9,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "direct_request",
+E           "signals": [
+E             "direct_request",
+E             "has_deadline",
+E             "confirmation_link"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 631,
+E           "gen_tokens": 63,
+E           "total_ms": 1768.7497
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: calendar_or_travel_03.json ---
+EMAIL:
+{
+  "from": "Hotel Reservations <reservations@hotel-example.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Booking confirmation: Seattle stay",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<booking-conf-2v2eg6iq@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Booking confirmed.\n\n        Hotel: Downtown Seattle Hotel\n        Check-in: Mar 6\n        Check-out: Mar 8\n        Confirmation: SEAT-88421\n\n        If you need to modify your reservation, use the link in your confirmation page."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "calendar_or_travel"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "needs_attention",
+  "confidence": 0.9,
+  "action": "keep_in_inbox",
+  "reason": "direct_request",
+  "signals": [
+    "direct_request",
+    "has_deadline",
+    "confirmation_link"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 631,
+  "gen_tokens": 63,
+  "prompt_ms": 74.3111,
+  "gen_ms": 1433.275,
+  "total_ms": 1768.7497
+}
+___________________________________________________________ test_corpus_case[security_alert_01.json] ___________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/security_alert_01.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['security_alert'], actual = 'spam_or_scams'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [security_alert_01.json] bucket_in failed
+E         expected: ['security_alert']
+E         actual:   spam_or_scams
+E
+E       DEBUG:
+E       {
+E         "case": "security_alert_01.json",
+E         "expect": {
+E           "bucket_in": [
+E             "security_alert"
+E           ],
+E           "min_confidence": 0.8,
+E           "auto_move_ok": false,
+E           "action": "keep_in_inbox"
+E         },
+E         "actual": {
+E           "bucket": "spam_or_scams",
+E           "confidence": 0.8,
+E           "action": "quarantine",
+E           "auto_move_ok": false,
+E           "reason": "suspicious_link, account_threat, security_alert",
+E           "signals": []
+E         },
+E         "perf": {
+E           "prompt_tokens": 646,
+E           "gen_tokens": 56,
+E           "total_ms": 1592.2411
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: security_alert_01.json ---
+EMAIL:
+{
+  "from": "Google Security <no-reply@accounts.google.com>",
+  "to": "Reza <reza@gmail.com>",
+  "cc": "",
+  "subject": "Security alert: new sign-in on your Google Account",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<security-ale-flukomgh@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "We noticed a new sign-in to your Google Account.\n\n        Device: Windows (Chrome)\n        Location: San Jose, CA\n        Time: Feb 20, 9:12 AM\n\n        If this was you, you can ignore this email.\n        If not, review your security activity in your account settings."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "security_alert"
+  ],
+  "min_confidence": 0.8,
+  "auto_move_ok": false,
+  "action": "keep_in_inbox"
+}
+LLM RESULT:
+{
+  "bucket": "spam_or_scams",
+  "confidence": 0.8,
+  "action": "quarantine",
+  "reason": "suspicious_link, account_threat, security_alert",
+  "signals": [],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 646,
+  "gen_tokens": 56,
+  "prompt_ms": 76.1498,
+  "gen_ms": 1266.6724,
+  "total_ms": 1592.2411
+}
+___________________________________________________________ test_corpus_case[security_alert_02.json] ___________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/security_alert_02.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['security_alert'], actual = 'spam_or_scams'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [security_alert_02.json] bucket_in failed
+E         expected: ['security_alert']
+E         actual:   spam_or_scams
+E
+E       DEBUG:
+E       {
+E         "case": "security_alert_02.json",
+E         "expect": {
+E           "bucket_in": [
+E             "security_alert"
+E           ],
+E           "min_confidence": 0.8,
+E           "auto_move_ok": false,
+E           "action": "keep_in_inbox"
+E         },
+E         "actual": {
+E           "bucket": "spam_or_scams",
+E           "confidence": 0.8,
+E           "action": "quarantine",
+E           "auto_move_ok": false,
+E           "reason": "suspicious_link, account_threat, password_reset_request",
+E           "signals": []
+E         },
+E         "perf": {
+E           "prompt_tokens": 621,
+E           "gen_tokens": 57,
+E           "total_ms": 1663.0639
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: security_alert_02.json ---
+EMAIL:
+{
+  "from": "Microsoft Account Team <account-security-noreply@account.microsoft.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Password reset requested",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<password-res-boane99d@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "A password reset was requested for your Microsoft account.\n\n        If you requested this, follow the instructions in your account security page.\n        If you did not request this, secure your account immediately by changing your password and enabling MFA."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "security_alert"
+  ],
+  "min_confidence": 0.8,
+  "auto_move_ok": false,
+  "action": "keep_in_inbox"
+}
+LLM RESULT:
+{
+  "bucket": "spam_or_scams",
+  "confidence": 0.8,
+  "action": "quarantine",
+  "reason": "suspicious_link, account_threat, password_reset_request",
+  "signals": [],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 621,
+  "gen_tokens": 57,
+  "prompt_ms": 77.3476,
+  "gen_ms": 1323.8013,
+  "total_ms": 1663.0639
+}
+___________________________________________________________ test_corpus_case[security_alert_03.json] ___________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/security_alert_03.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['security_alert'], actual = 'spam_or_scams'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [security_alert_03.json] bucket_in failed
+E         expected: ['security_alert']
+E         actual:   spam_or_scams
+E
+E       DEBUG:
+E       {
+E         "case": "security_alert_03.json",
+E         "expect": {
+E           "bucket_in": [
+E             "security_alert"
+E           ],
+E           "min_confidence": 0.8,
+E           "auto_move_ok": false,
+E           "action": "keep_in_inbox"
+E         },
+E         "actual": {
+E           "bucket": "spam_or_scams",
+E           "confidence": 0.95,
+E           "action": "quarantine",
+E           "auto_move_ok": false,
+E           "reason": "suspicious_link, account_threat, one_time_code",
+E           "signals": []
+E         },
+E         "perf": {
+E           "prompt_tokens": 617,
+E           "gen_tokens": 58,
+E           "total_ms": 1632.48
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: security_alert_03.json ---
+EMAIL:
+{
+  "from": "Bank Alerts <alerts@bank-example.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Two-factor authentication code",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<two-factor-a-c7kjparb@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Your one-time code is: 493201\n\n        This code expires in 10 minutes.\n        If you did not request this code, contact support via the official website or phone number on your card."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "security_alert"
+  ],
+  "min_confidence": 0.8,
+  "auto_move_ok": false,
+  "action": "keep_in_inbox"
+}
+LLM RESULT:
+{
+  "bucket": "spam_or_scams",
+  "confidence": 0.95,
+  "action": "quarantine",
+  "reason": "suspicious_link, account_threat, one_time_code",
+  "signals": [],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 617,
+  "gen_tokens": 58,
+  "prompt_ms": 72.8277,
+  "gen_ms": 1306.4549,
+  "total_ms": 1632.48
+}
+________________________________________________________ test_corpus_case[social_notification_01.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/social_notification_01.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['social_notification'], actual = 'newsletter_or_marketing'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [social_notification_01.json] bucket_in failed
+E         expected: ['social_notification']
+E         actual:   newsletter_or_marketing
+E
+E       DEBUG:
+E       {
+E         "case": "social_notification_01.json",
+E         "expect": {
+E           "bucket_in": [
+E             "social_notification"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "newsletter_or_marketing",
+E           "confidence": 0.9,
+E           "action": "move_to_folder",
+E           "auto_move_ok": true,
+E           "reason": "list_unsubscribe, newsletter_content",
+E           "signals": [
+E             "list_unsubscribe",
+E             "newsletter_content"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 625,
+E           "gen_tokens": 64,
+E           "total_ms": 1844.8468
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: social_notification_01.json ---
+EMAIL:
+{
+  "from": "LinkedIn <messages-noreply@linkedin.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "You have 3 new messages",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<you-have-3-n-89ehj7i1@example.test>",
+  "list_id": "<linkedin.notifications.linkedin.com>",
+  "list_unsubscribe": "<https://www.linkedin.com/comm/setting/email>",
+  "body_excerpt": "You have new messages waiting in your LinkedIn inbox.\n\n        Open LinkedIn to read them.\n        You can change your email notification settings at any time."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "social_notification"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "newsletter_or_marketing",
+  "confidence": 0.9,
+  "action": "move_to_folder",
+  "reason": "list_unsubscribe, newsletter_content",
+  "signals": [
+    "list_unsubscribe",
+    "newsletter_content"
+  ],
+  "auto_move_ok": true
+}
+PERF: {
+  "prompt_tokens": 625,
+  "gen_tokens": 64,
+  "prompt_ms": 88.7961,
+  "gen_ms": 1481.451,
+  "total_ms": 1844.8468
+}
+________________________________________________________ test_corpus_case[social_notification_02.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/social_notification_02.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['social_notification'], actual = 'newsletter_or_marketing'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [social_notification_02.json] bucket_in failed
+E         expected: ['social_notification']
+E         actual:   newsletter_or_marketing
+E
+E       DEBUG:
+E       {
+E         "case": "social_notification_02.json",
+E         "expect": {
+E           "bucket_in": [
+E             "social_notification"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "newsletter_or_marketing",
+E           "confidence": 0.8,
+E           "action": "move_to_folder",
+E           "auto_move_ok": true,
+E           "reason": "list_unsubscribe, list_id, notification_email",
+E           "signals": [
+E             "list_unsubscribe",
+E             "list_id",
+E             "notification_email"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 639,
+E           "gen_tokens": 71,
+E           "total_ms": 1969.8822
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: social_notification_02.json ---
+EMAIL:
+{
+  "from": "GitHub <notifications@github.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "[GitHub] New issue comment on your repository",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<[github]-new-m4bltnus@example.test>",
+  "list_id": "<github.notifications.github.com>",
+  "list_unsubscribe": "<https://github.com/notifications/unsubscribe>",
+  "body_excerpt": "There is a new comment on an issue in your repository.\n\n        Repo: reza/mailtriage\n        Issue: \"Add corpus-driven tests\"\n        Comment: \"Looks good — one suggestion…\"\n\n        Manage notifications in GitHub settings."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "social_notification"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "newsletter_or_marketing",
+  "confidence": 0.8,
+  "action": "move_to_folder",
+  "reason": "list_unsubscribe, list_id, notification_email",
+  "signals": [
+    "list_unsubscribe",
+    "list_id",
+    "notification_email"
+  ],
+  "auto_move_ok": true
+}
+PERF: {
+  "prompt_tokens": 639,
+  "gen_tokens": 71,
+  "prompt_ms": 72.1407,
+  "gen_ms": 1625.2296,
+  "total_ms": 1969.8822
+}
+________________________________________________________ test_corpus_case[social_notification_03.json] _________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/social_notification_03.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['social_notification'], actual = 'newsletter_or_marketing'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [social_notification_03.json] bucket_in failed
+E         expected: ['social_notification']
+E         actual:   newsletter_or_marketing
+E
+E       DEBUG:
+E       {
+E         "case": "social_notification_03.json",
+E         "expect": {
+E           "bucket_in": [
+E             "social_notification"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "newsletter_or_marketing",
+E           "confidence": 0.8,
+E           "action": "move_to_folder",
+E           "auto_move_ok": true,
+E           "reason": "list_unsubscribe, notification_preferences",
+E           "signals": []
+E         },
+E         "perf": {
+E           "prompt_tokens": 610,
+E           "gen_tokens": 51,
+E           "total_ms": 1498.554
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: social_notification_03.json ---
+EMAIL:
+{
+  "from": "X <notify@x.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "New follower: @someone",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<new-follower-ml105n0c@example.test>",
+  "list_id": "<x.notifications.x.com>",
+  "list_unsubscribe": "<https://x.com/settings/notifications>",
+  "body_excerpt": "You have a new follower.\n\n        @someone is now following you.\n        Adjust notification preferences in your account settings."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "social_notification"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "newsletter_or_marketing",
+  "confidence": 0.8,
+  "action": "move_to_folder",
+  "reason": "list_unsubscribe, notification_preferences",
+  "signals": [],
+  "auto_move_ok": true
+}
+PERF: {
+  "prompt_tokens": 610,
+  "gen_tokens": 51,
+  "prompt_ms": 85.9234,
+  "gen_ms": 1152.1755,
+  "total_ms": 1498.554
+}
+___________________________________________________________ test_corpus_case[transactional_01.json] ____________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/transactional_01.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['transactional'], actual = 'newsletter_or_marketing'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [transactional_01.json] bucket_in failed
+E         expected: ['transactional']
+E         actual:   newsletter_or_marketing
+E
+E       DEBUG:
+E       {
+E         "case": "transactional_01.json",
+E         "expect": {
+E           "bucket_in": [
+E             "transactional"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "newsletter_or_marketing",
+E           "confidence": 0.85,
+E           "action": "move_to_folder",
+E           "auto_move_ok": true,
+E           "reason": "list_unsubscribe",
+E           "signals": [
+E             "list_unsubscribe",
+E             "order_update",
+E             "marketing"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 646,
+E           "gen_tokens": 65,
+E           "total_ms": 1827.9054
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: transactional_01.json ---
+EMAIL:
+{
+  "from": "Amazon <order-update@amazon.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Your Amazon.com order has shipped",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<your-amazon.-uxp25noz@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Your order #112-4455667-8899001 has shipped.\n\n        Items:\n        - USB-C Hub (Qty 1)\n\n        Estimated delivery: Tue, Feb 24\n        If you did not place this order, review your account activity in the Amazon app/website."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "transactional"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "newsletter_or_marketing",
+  "confidence": 0.85,
+  "action": "move_to_folder",
+  "reason": "list_unsubscribe",
+  "signals": [
+    "list_unsubscribe",
+    "order_update",
+    "marketing"
+  ],
+  "auto_move_ok": true
+}
+PERF: {
+  "prompt_tokens": 646,
+  "gen_tokens": 65,
+  "prompt_ms": 78.503,
+  "gen_ms": 1480.0894,
+  "total_ms": 1827.9054
+}
+___________________________________________________________ test_corpus_case[transactional_02.json] ____________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/transactional_02.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['transactional'], actual = 'uncertain'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [transactional_02.json] bucket_in failed
+E         expected: ['transactional']
+E         actual:   uncertain
+E
+E       DEBUG:
+E       {
+E         "case": "transactional_02.json",
+E         "expect": {
+E           "bucket_in": [
+E             "transactional"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "uncertain",
+E           "confidence": 0.6,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "no_direct_request",
+E           "signals": [
+E             "no_direct_request"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 624,
+E           "gen_tokens": 56,
+E           "total_ms": 1722.3689
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: transactional_02.json ---
+EMAIL:
+{
+  "from": "City Water Utility <billing@citywater.gov>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Receipt: Payment received for water bill",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<receipt:-pay-pvyfljhk@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Payment received.\n\n        Amount: $86.42\n        Confirmation: CWU-2398841\n        Service period: Jan 15 – Feb 14\n\n        Thank you for your payment."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "transactional"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "uncertain",
+  "confidence": 0.6,
+  "action": "keep_in_inbox",
+  "reason": "no_direct_request",
+  "signals": [
+    "no_direct_request"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 624,
+  "gen_tokens": 56,
+  "prompt_ms": 75.054,
+  "gen_ms": 1394.0736,
+  "total_ms": 1722.3689
+}
+___________________________________________________________ test_corpus_case[transactional_03.json] ____________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/transactional_03.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['transactional'], actual = 'newsletter_or_marketing'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [transactional_03.json] bucket_in failed
+E         expected: ['transactional']
+E         actual:   newsletter_or_marketing
+E
+E       DEBUG:
+E       {
+E         "case": "transactional_03.json",
+E         "expect": {
+E           "bucket_in": [
+E             "transactional"
+E           ],
+E           "min_confidence": 0.75,
+E           "auto_move_ok": true,
+E           "action": "move_to_folder"
+E         },
+E         "actual": {
+E           "bucket": "newsletter_or_marketing",
+E           "confidence": 0.8,
+E           "action": "move_to_folder",
+E           "auto_move_ok": true,
+E           "reason": "receipt_email, no_direct_request, no_deadline, no_list_unsubscribe",
+E           "signals": [
+E             "receipt_email",
+E             "no_direct_request",
+E             "no_deadline",
+E             "no_list_unsubscribe"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 635,
+E           "gen_tokens": 91,
+E           "total_ms": 2492.6421
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: transactional_03.json ---
+EMAIL:
+{
+  "from": "Hilton Honors <receipts@hilton.com>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Your receipt for Hilton stay",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<your-receipt-9qcigxb3@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Thank you for staying with us.\n\n        Hotel: Hilton San Jose\n        Dates: Feb 18–19\n        Total: $214.16\n        Folio: HLT-558193\n\n        This email serves as your receipt."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "transactional"
+  ],
+  "min_confidence": 0.75,
+  "auto_move_ok": true,
+  "action": "move_to_folder"
+}
+LLM RESULT:
+{
+  "bucket": "newsletter_or_marketing",
+  "confidence": 0.8,
+  "action": "move_to_folder",
+  "reason": "receipt_email, no_direct_request, no_deadline, no_list_unsubscribe",
+  "signals": [
+    "receipt_email",
+    "no_direct_request",
+    "no_deadline",
+    "no_list_unsubscribe"
+  ],
+  "auto_move_ok": true
+}
+PERF: {
+  "prompt_tokens": 635,
+  "gen_tokens": 91,
+  "prompt_ms": 77.9948,
+  "gen_ms": 2126.2354,
+  "total_ms": 2492.6421
+}
+_____________________________________________________________ test_corpus_case[uncertain_01.json] ______________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/uncertain_01.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['uncertain'], actual = 'needs_attention'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [uncertain_01.json] bucket_in failed
+E         expected: ['uncertain']
+E         actual:   needs_attention
+E
+E       DEBUG:
+E       {
+E         "case": "uncertain_01.json",
+E         "expect": {
+E           "bucket_in": [
+E             "uncertain"
+E           ],
+E           "max_confidence": 0.69,
+E           "auto_move_ok": false,
+E           "action": "do_nothing"
+E         },
+E         "actual": {
+E           "bucket": "needs_attention",
+E           "confidence": 0.9,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "direct_request",
+E           "signals": [
+E             "direct_request",
+E             "has_deadline"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 583,
+E           "gen_tokens": 59,
+E           "total_ms": 1746.0583
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: uncertain_01.json ---
+EMAIL:
+{
+  "from": "Pat <pat@unknown-domain.net>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Re: your request",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<re:-your-req-ajrh0oos@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Following up on your request — can you confirm the details?"
+}
+EXPECT:
+{
+  "bucket_in": [
+    "uncertain"
+  ],
+  "max_confidence": 0.69,
+  "auto_move_ok": false,
+  "action": "do_nothing"
+}
+LLM RESULT:
+{
+  "bucket": "needs_attention",
+  "confidence": 0.9,
+  "action": "keep_in_inbox",
+  "reason": "direct_request",
+  "signals": [
+    "direct_request",
+    "has_deadline"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 583,
+  "gen_tokens": 59,
+  "prompt_ms": 80.9212,
+  "gen_ms": 1383.3559,
+  "total_ms": 1746.0583
+}
+_____________________________________________________________ test_corpus_case[uncertain_02.json] ______________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/uncertain_02.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:112: in _assert_expectations
+    fail("action", action, result.action)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'action', expected = 'do_nothing', actual = 'keep_in_inbox'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [uncertain_02.json] action failed
+E         expected: do_nothing
+E         actual:   keep_in_inbox
+E
+E       DEBUG:
+E       {
+E         "case": "uncertain_02.json",
+E         "expect": {
+E           "bucket_in": [
+E             "uncertain"
+E           ],
+E           "max_confidence": 0.69,
+E           "auto_move_ok": false,
+E           "action": "do_nothing"
+E         },
+E         "actual": {
+E           "bucket": "uncertain",
+E           "confidence": 0.6,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "no_direct_request",
+E           "signals": [
+E             "no_direct_request"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 572,
+E           "gen_tokens": 56,
+E           "total_ms": 1650.2149
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: uncertain_02.json ---
+EMAIL:
+{
+  "from": "noreply@service.example",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Notification",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<notification-ndvruz3t@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "This is an automated notification regarding your recent activity."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "uncertain"
+  ],
+  "max_confidence": 0.69,
+  "auto_move_ok": false,
+  "action": "do_nothing"
+}
+LLM RESULT:
+{
+  "bucket": "uncertain",
+  "confidence": 0.6,
+  "action": "keep_in_inbox",
+  "reason": "no_direct_request",
+  "signals": [
+    "no_direct_request"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 572,
+  "gen_tokens": 56,
+  "prompt_ms": 57.4864,
+  "gen_ms": 1306.0758,
+  "total_ms": 1650.2149
+}
+_____________________________________________________________ test_corpus_case[uncertain_03.json] ______________________________________________________________
+
+case_path = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example/uncertain_03.json')
+corpus_dir = WindowsPath('C:/Users/rezaf/dev/mailtriage/tests/corpus_example'), ollama_client = <mailtriage.OllamaClient object at 0x0000022B870AF4D0>
+
+    @pytest.mark.integration
+    def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client: mt.OllamaClient):
+        # Handles the sentinel "None" params used when integration/corpus isn't ready
+        if case_path is None:
+            pytest.skip("Integration disabled or corpus missing/empty. See parametrization id for details.")
+
+        case_name = str(case_path.relative_to(corpus_dir)).replace("\\", "/")
+        email_obj, expect = _load_case(case_path)
+
+        # Verbose output (use -s to see live)
+        print(f"\n--- CASE: {case_name} ---")
+
+        compact_email = dict(email_obj)
+        body = compact_email.get("body_excerpt", "")
+        if isinstance(body, str) and len(body) > 800:
+            compact_email["body_excerpt"] = body[:800] + "\n...[truncated for display]..."
+
+        print("EMAIL:")
+        print(json.dumps(compact_email, indent=2, ensure_ascii=False))
+        print("EXPECT:")
+        print(json.dumps(expect, indent=2, ensure_ascii=False))
+
+        result, raw = ollama_client.triage_email(email_obj)
+
+        print("LLM RESULT:")
+        print(result.model_dump_json(indent=2, exclude_none=True))
+
+        stats = {
+            "prompt_tokens": raw.get("prompt_eval_count"),
+            "gen_tokens": raw.get("eval_count"),
+            "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
+            "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
+            "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
+        }
+        print("PERF:", json.dumps(stats, indent=2))
+
+>       _assert_expectations(case_name, result, raw, expect)
+
+tests\test_ollama_integration_corpus.py:208:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_ollama_integration_corpus.py:84: in _assert_expectations
+    fail("bucket_in", bucket_in, result.bucket)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bucket_in', expected = ['uncertain'], actual = 'needs_attention'
+
+    def fail(rule: str, expected: Any, actual: Any) -> None:
+>       raise AssertionError(
+            f"[{case_name}] {rule} failed\n"
+            f"  expected: {expected}\n"
+            f"  actual:   {actual}\n\n"
+            f"DEBUG:\n{json.dumps(debug, indent=2, ensure_ascii=False)}"
+        )
+E       AssertionError: [uncertain_03.json] bucket_in failed
+E         expected: ['uncertain']
+E         actual:   needs_attention
+E
+E       DEBUG:
+E       {
+E         "case": "uncertain_03.json",
+E         "expect": {
+E           "bucket_in": [
+E             "uncertain"
+E           ],
+E           "max_confidence": 0.69,
+E           "auto_move_ok": false,
+E           "action": "do_nothing"
+E         },
+E         "actual": {
+E           "bucket": "needs_attention",
+E           "confidence": 0.7,
+E           "action": "keep_in_inbox",
+E           "auto_move_ok": false,
+E           "reason": "direct_request",
+E           "signals": [
+E             "direct_request"
+E           ]
+E         },
+E         "perf": {
+E           "prompt_tokens": 580,
+E           "gen_tokens": 54,
+E           "total_ms": 1604.5909
+E         }
+E       }
+
+tests\test_ollama_integration_corpus.py:74: AssertionError
+--------------------------------------------------------------------- Captured stdout call ---------------------------------------------------------------------
+
+--- CASE: uncertain_03.json ---
+EMAIL:
+{
+  "from": "Support <support@vendor.example>",
+  "to": "Reza <reza@example.com>",
+  "cc": "",
+  "subject": "Ticket update",
+  "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+  "message_id": "<ticket-updat-76rtdmfl@example.test>",
+  "list_id": "",
+  "list_unsubscribe": "",
+  "body_excerpt": "Your ticket has been updated. Please see the portal for details."
+}
+EXPECT:
+{
+  "bucket_in": [
+    "uncertain"
+  ],
+  "max_confidence": 0.69,
+  "auto_move_ok": false,
+  "action": "do_nothing"
+}
+LLM RESULT:
+{
+  "bucket": "needs_attention",
+  "confidence": 0.7,
+  "action": "keep_in_inbox",
+  "reason": "direct_request",
+  "signals": [
+    "direct_request"
+  ],
+  "auto_move_ok": false
+}
+PERF: {
+  "prompt_tokens": 580,
+  "gen_tokens": 54,
+  "prompt_ms": 77.5437,
+  "gen_ms": 1248.6565,
+  "total_ms": 1604.5909
+}
+=================================================================== short test summary info ====================================================================
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[calendar_or_travel_01.json] - AssertionError: [calendar_or_travel_01.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[calendar_or_travel_02.json] - AssertionError: [calendar_or_travel_02.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[calendar_or_travel_03.json] - AssertionError: [calendar_or_travel_03.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[security_alert_01.json] - AssertionError: [security_alert_01.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[security_alert_02.json] - AssertionError: [security_alert_02.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[security_alert_03.json] - AssertionError: [security_alert_03.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[social_notification_01.json] - AssertionError: [social_notification_01.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[social_notification_02.json] - AssertionError: [social_notification_02.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[social_notification_03.json] - AssertionError: [social_notification_03.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[transactional_01.json] - AssertionError: [transactional_01.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[transactional_02.json] - AssertionError: [transactional_02.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[transactional_03.json] - AssertionError: [transactional_03.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[uncertain_01.json] - AssertionError: [uncertain_01.json] bucket_in failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[uncertain_02.json] - AssertionError: [uncertain_02.json] action failed
+FAILED tests/test_ollama_integration_corpus.py::test_corpus_case[uncertain_03.json] - AssertionError: [uncertain_03.json] bucket_in failed
+15 failed, 13 passed, 11 deselected in 52.05s

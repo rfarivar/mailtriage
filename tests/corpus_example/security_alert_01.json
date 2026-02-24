@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Google Security <no-reply@accounts.google.com>",
+    "to": "Reza <reza@gmail.com>",
+    "cc": "",
+    "subject": "Security alert: new sign-in on your Google Account",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<security-ale-flukomgh@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "We noticed a new sign-in to your Google Account.\n\n        Device: Windows (Chrome)\n        Location: San Jose, CA\n        Time: Feb 20, 9:12 AM\n\n        If this was you, you can ignore this email.\n        If not, review your security activity in your account settings."
+  },
+  "expect": {
+    "bucket_in": [
+      "security_alert"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Student Team Delta <teamdelta@students.illinois.edu>",
+    "to": "Reza <reza@illinois.edu>",
+    "cc": "",
+    "subject": "Question about milestone scope (need confirmation)",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<question-abo-tv0tx1r2@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Hi Professor Farivar,\n\n        We want to confirm whether our Milestone 3 can focus on the prototype plus one measurement set,\n        or if you expect the full 4–5 measurement sets by then.\n        Could you confirm the expectation so we plan the sprint correctly?\n\n        Best,\n        Team Delta"
+  },
+  "expect": {
+    "bucket_in": [
+      "needs_attention"
+    ],
+    "min_confidence": 0.7,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "UIUC Calendar <calendar@illinois.edu>",
+    "to": "Reza <reza@illinois.edu>",
+    "cc": "",
+    "subject": "Invitation: Weekly Capstone Sprint Review (Mon 2pm)",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<invitation:--s29onbdu@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "You have been invited to an event.\n\n        Title: Weekly Capstone Sprint Review\n        When: Mon Feb 23, 2:00–2:30 PM (PT)\n        Where: Zoom (link in calendar invite)\n\n        Please accept or decline."
+  },
+  "expect": {
+    "bucket_in": [
+      "calendar_or_travel"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

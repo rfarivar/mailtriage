@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Cloud Tools Weekly <newsletter@cloudtoolsweekly.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Cloud Tools Weekly #182 — K8s tips, cost hacks, and more",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<cloud-tools--b6kehx7q@example.test>",
+    "list_id": "<cloudtoolsweekly.newsletter.cloudtoolsweekly.com>",
+    "list_unsubscribe": "<https://cloudtoolsweekly.com/unsubscribe>",
+    "body_excerpt": "This week:\n        - Kubernetes troubleshooting tips\n        - FinOps: reducing idle spend\n        - New open-source releases\n\n        Read online / Unsubscribe."
+  },
+  "expect": {
+    "bucket_in": [
+      "newsletter_or_marketing"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

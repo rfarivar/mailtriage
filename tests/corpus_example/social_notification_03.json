@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "X <notify@x.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "New follower: @someone",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<new-follower-ml105n0c@example.test>",
+    "list_id": "<x.notifications.x.com>",
+    "list_unsubscribe": "<https://x.com/settings/notifications>",
+    "body_excerpt": "You have a new follower.\n\n        @someone is now following you.\n        Adjust notification preferences in your account settings."
+  },
+  "expect": {
+    "bucket_in": [
+      "social_notification"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

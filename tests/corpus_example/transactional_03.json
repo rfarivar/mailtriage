@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Hilton Honors <receipts@hilton.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Your receipt for Hilton stay",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<your-receipt-9qcigxb3@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Thank you for staying with us.\n\n        Hotel: Hilton San Jose\n        Dates: Feb 18–19\n        Total: $214.16\n        Folio: HLT-558193\n\n        This email serves as your receipt."
+  },
+  "expect": {
+    "bucket_in": [
+      "transactional"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

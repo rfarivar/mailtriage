@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Bank Alerts <alerts@bank-example.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Two-factor authentication code",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<two-factor-a-c7kjparb@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Your one-time code is: 493201\n\n        This code expires in 10 minutes.\n        If you did not request this code, contact support via the official website or phone number on your card."
+  },
+  "expect": {
+    "bucket_in": [
+      "security_alert"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

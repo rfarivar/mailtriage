@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "LinkedIn <messages-noreply@linkedin.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "You have 3 new messages",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<you-have-3-n-89ehj7i1@example.test>",
+    "list_id": "<linkedin.notifications.linkedin.com>",
+    "list_unsubscribe": "<https://www.linkedin.com/comm/setting/email>",
+    "body_excerpt": "You have new messages waiting in your LinkedIn inbox.\n\n        Open LinkedIn to read them.\n        You can change your email notification settings at any time."
+  },
+  "expect": {
+    "bucket_in": [
+      "social_notification"
+    ],
+    "min_confidence": 0.75,
+    "auto_move_ok": true,
+    "action": "move_to_folder"
+  }
+}

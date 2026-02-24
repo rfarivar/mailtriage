@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "Alex <alex@company.com>",
+    "to": "Reza <reza@company.com>",
+    "cc": "",
+    "subject": "Decision needed: vendor choice for next week",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<decision-nee-qmh6uc8t@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Hey Reza — quick decision needed.\n\n        Between Vendor A and Vendor B, which should we sign for next week’s pilot?\n        I need your call by end of day so procurement can start the paperwork.\n        Two bullet points is fine.\n\n        -Alex"
+  },
+  "expect": {
+    "bucket_in": [
+      "needs_attention"
+    ],
+    "min_confidence": 0.7,
+    "auto_move_ok": false,
+    "action": "keep_in_inbox"
+  }
+}

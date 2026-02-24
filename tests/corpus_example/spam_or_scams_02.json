@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "IT Helpdesk <helpdesk@illinois-security.com>",
+    "to": "Reza <reza@illinois.edu>",
+    "cc": "",
+    "subject": "Mailbox storage exceeded — confirm now",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<mailbox-stor-cjth4j1v@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "Your mailbox has exceeded the storage limit.\n\n        Click to re-validate your account and avoid deactivation:\n        http://illinois-security.com/reauth\n\n        This must be completed today."
+  },
+  "expect": {
+    "bucket_in": [
+      "spam_or_scams"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "quarantine"
+  }
+}

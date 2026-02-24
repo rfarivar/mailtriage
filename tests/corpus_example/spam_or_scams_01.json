@@ -1,0 +1,21 @@
+{
+  "email": {
+    "from": "PayPal Support <service@paypaI-security.com>",
+    "to": "Reza <reza@example.com>",
+    "cc": "",
+    "subject": "Your account is limited — action required",
+    "date": "Fri, 20 Feb 2026 10:00:00 -0800",
+    "message_id": "<your-account-knxtmooc@example.test>",
+    "list_id": "",
+    "list_unsubscribe": "",
+    "body_excerpt": "We detected suspicious activity and limited your account.\n\n        Verify your identity immediately to restore access:\n        http://paypaI-security.com/verify\n\n        Failure to verify within 1 hour will permanently suspend your account."
+  },
+  "expect": {
+    "bucket_in": [
+      "spam_or_scams"
+    ],
+    "min_confidence": 0.8,
+    "auto_move_ok": false,
+    "action": "quarantine"
+  }
+}
