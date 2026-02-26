@@ -1,0 +1,11 @@
+﻿# Runtime dependencies
+requests
+PyYAML
+beautifulsoup4
+pydantic
+python-dotenv
+tqdm
+msal
+
+# Test dependencies
+pytest
