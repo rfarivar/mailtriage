@@ -38,6 +38,7 @@ config.yaml
 *.env
 .env
 .env.*
+.msal_token_cache.bin
 
 # ---- Logs / artifacts ----
 logs/
@@ -55,3 +56,5 @@ mail_samples/
 
 # ---- Test corpus (if you add it) ----
 tests/corpus_private/
+*.cover
+.tracecov/*

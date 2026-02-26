@@ -1,4 +1,4 @@
-import json
+﻿import json
 from unittest.mock import patch, MagicMock
 import mailtriage as mt
 
@@ -30,7 +30,7 @@ def test_ollama_client_parses_structured_json(mock_post):
     mock_post.return_value = mock_resp
 
     client = mt.OllamaClient(base_url="http://localhost:11434", model="llama3.1:8b")
-    parsed, raw = client.triage_email({"subject": "Sale", "body_excerpt": "Buy now"})
+    parsed, raw = client.triage_email({"subject": "Sale", "body_excerpt": "Buy now"}, system_prompt="You are a strict email triage classifier.")
 
     assert parsed.bucket == "newsletter_or_marketing"
     assert parsed.confidence == 0.95

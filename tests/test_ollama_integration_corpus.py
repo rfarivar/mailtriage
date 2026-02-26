@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -191,7 +191,7 @@ def test_corpus_case(case_path: Optional[Path], corpus_dir: Path, ollama_client:
     print("EXPECT:")
     print(json.dumps(expect, indent=2, ensure_ascii=False))
 
-    result, raw = ollama_client.triage_email(email_obj)
+    result, raw = ollama_client.triage_email(email_obj, system_prompt="You are a strict email triage classifier.")
 
     print("LLM RESULT:")
     print(result.model_dump_json(indent=2, exclude_none=True))

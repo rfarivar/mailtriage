@@ -7,7 +7,9 @@ IMPORTANT:
 - List headers (List-ID / List-Unsubscribe) indicate automated mail, but do NOT automatically mean marketing.
 - Confidence MUST be a decimal between 0 and 1 (e.g., 0.82). If you are tempted to use percentages, convert to 0..1.
 - Very long URLs (see _features.max_url_len / max_url_query_len) can appear in legitimate tracking links; do not classify as spam_or_scams based on URL length alone.
-- Keep reason concise (<= 160 chars).
+- Keep reason concise (<= 300 chars).
+- Do NOT use markdown, bullets, or numbering.
+- signals MUST be 1–3 short strings.
 
 BUCKET DEFINITIONS (pick exactly one):
 1) needs_attention:

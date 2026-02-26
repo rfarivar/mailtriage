@@ -1,4 +1,5 @@
 import argparse
+import base64
 import datetime as dt
 import email
 import json
@@ -20,8 +21,11 @@ from pathlib import Path
 import os
 import time
 from urllib.parse import urlparse
+from tqdm import tqdm
 
 from dotenv import load_dotenv
+
+from m365_oauth import get_m365_access_token
 
 
 # -----------------------------
@@ -351,7 +355,7 @@ class OllamaClient:
                 "temperature": 0.0,
                 "num_ctx": context_length_tokens,      # <- context window; for llama 3.2:3b can go as high as 16K, but for 
                                       # llama-3.1:8b and qwen3:8b and deepseek-r1:8b has to remain under 8K or spills into CPU
-                "num_predict": 256,   # <- cap output tokens (optional but good practice)
+                "num_predict": 512,   # <- cap output tokens (optional but good practice)
             },
         }
 
@@ -400,19 +404,56 @@ class OllamaClient:
 # IMAP connector + mover
 # -----------------------------
 
+def xoauth2_b64(username: str, access_token: str) -> str:
+    """
+    XOAUTH2 string is:
+      base64("user=<user>^Aauth=Bearer <token>^A^A")
+    where ^A is Ctrl+A (\x01).
+    """
+    s = f"user={username}\x01auth=Bearer {access_token}\x01\x01"
+    return base64.b64encode(s.encode("utf-8")).decode("ascii")
+
+def xoauth2_sasl_bytes(username: str, access_token: str) -> bytes:
+    # NOTE: this is NOT base64. imaplib.authenticate will base64-encode it.
+    s = f"user={username}\x01auth=Bearer {access_token}\x01\x01"
+    return s.encode("utf-8")
+
 @dataclass
 class ImapAccount:
     host: str
     port: int
     username: str
-    password_env: str
+    auth_method: str = "password"  # "password" or "xoauth2"
+    password_env: Optional[str] = None
+    access_token_env: Optional[str] = None
     mailbox: str = "INBOX"
 
     def get_password(self) -> str:
+        if not self.password_env:
+            raise RuntimeError("password_env not configured for password auth")
         pw = os.getenv(self.password_env)
         if not pw:
             raise RuntimeError(f"Missing env var for IMAP password: {self.password_env}")
         return pw
+
+    def get_access_token(self) -> str:
+        """Get OAuth2 access token from env or via M365 device flow."""
+        if not self.access_token_env:
+            raise RuntimeError("access_token_env not configured for xoauth2 auth")
+        
+        # Check if token is already in environment (user set it manually)
+        token = os.getenv(self.access_token_env)
+        if token:
+            return token
+        
+        # Otherwise, use M365 device flow to get a fresh token
+        from m365_oauth import get_m365_access_token
+        scopes = ["https://outlook.office.com/IMAP.AccessAsUser.All"]
+        token = get_m365_access_token(scopes)
+        
+        # Cache it in the environment for this session
+        os.environ[self.access_token_env] = token
+        return token
 
 
 class ImapClient:
@@ -423,7 +464,24 @@ class ImapClient:
     def __enter__(self):
         ctx = ssl.create_default_context()
         self.conn = imaplib.IMAP4_SSL(self.acct.host, self.acct.port, ssl_context=ctx)
-        self.conn.login(self.acct.username, self.acct.get_password())
+        
+        # Authenticate based on method
+        if self.acct.auth_method == "password":
+            self.conn.login(self.acct.username, self.acct.get_password())
+        elif self.acct.auth_method == "xoauth2":
+            token = self.acct.get_access_token()
+            # b64 = xoauth2_b64(self.acct.username, token)
+            # typ, data = self.conn.authenticate("XOAUTH2", lambda _: b64)
+            # if typ != "OK":
+            #     raise RuntimeError(f"XOAUTH2 authentication failed: {typ} {data}")
+            
+            sasl = xoauth2_sasl_bytes(self.acct.username, token)
+            typ, data = self.conn.authenticate("XOAUTH2", lambda _: sasl)
+            if typ != "OK":
+                raise RuntimeError(f"XOAUTH2 auth failed: {typ} {data}")            
+        else:
+            raise RuntimeError(f"Unknown auth method: {self.acct.auth_method}")
+        
         typ, _ = self.conn.select(self.acct.mailbox)
         if typ != "OK":
             raise RuntimeError(f"Failed to select mailbox: {self.acct.mailbox}")
@@ -586,44 +644,73 @@ def write_jsonl_line(fp, obj: Dict[str, Any]) -> None:
 
 # ======================================================================
 
-def bucket_group(bucket: str) -> str:
+def bucket_dest_group(bucket: str, folder_map: Dict[str, str]) -> str:
     """
-    Coarser grouping for agreement checks.
+    Group key for agreement when --agree group is used.
+
+    We use the destination folder (AI/Promotions, AI/Social, etc.) as the group key,
+    since that's what the user actually cares about.
+    Buckets that don't move fall back to a stable label.
     """
-    if bucket in ("transactional", "newsletter_or_marketing", "social_notification"):
-        return "movable_low_risk"
-    if bucket == "calendar_or_travel":
-        return "calendar_or_travel"
-    if bucket in ("needs_attention", "security_alert"):
-        return "attention"
-    if bucket == "spam_or_scams":
-        return "spam"
-    return "uncertain"
+    dest = folder_map.get(bucket)
+    if dest:
+        return dest
 
-def is_movable_candidate(triage: TriageResult, dest: Optional[str], never_move: bool, dry_run: bool,
-                         auto_thr: float, spam_thr: float) -> bool:
-    if dest is None:
-        return False
-    if never_move:
-        return False
-    if not triage.auto_move_ok:
-        return False
-    if triage.bucket == "spam_or_scams":
-        return triage.confidence >= spam_thr
-    return triage.confidence >= auto_thr
+    # Non-movable buckets: keep them distinct by bucket name to avoid over-agreement.
+    return f"INBOX::{bucket}"
 
-def agree(primary: TriageResult, secondary: Optional[TriageResult], mode: str) -> bool:
+def agree(
+    primary: TriageResult,
+    secondary: Optional[TriageResult],
+    mode: str,
+    folder_map: Dict[str, str],
+) -> Tuple[bool, Optional[str], Optional[str]]:
+    """
+    Returns (is_verified, forced_bucket, forced_dest).
+
+    forced_bucket/forced_dest are used for special overrides like spam quarantine consensus.
+    """
     if secondary is None:
-        return False
-    if mode == "bucket":
-        return primary.bucket == secondary.bucket
-    return bucket_group(primary.bucket) == bucket_group(secondary.bucket)
+        return False, None, None
 
-def verify_reason(it, args, auto_thr, spam_thr):
+    # --- special spam override ---
+    # If either model says spam_or_scams and the other says a low-risk movable bucket,
+    # treat it as verified and route to spam_or_scams destination (AI/Quarantine).
+    movable_ok = {"newsletter_or_marketing", "social_notification", "transactional"}
+    if (
+        (primary.bucket == "spam_or_scams" and secondary.bucket in movable_ok)
+        or (secondary.bucket == "spam_or_scams" and primary.bucket in movable_ok)
+    ):
+      
+        forced_bucket = "spam_or_scams"
+        forced_dest = folder_map.get("spam_or_scams")
+        # If spam folder isn't configured, we can't safely act on this override.
+        if forced_dest:
+            return True, forced_bucket, forced_dest
+        return False, None, None
+
+    # --- normal agreement ---
+    if mode == "bucket":
+        return (primary.bucket == secondary.bucket), None, None
+
+    # mode == "group": compare destination intent
+    g1 = bucket_dest_group(primary.bucket, folder_map)
+    g2 = bucket_dest_group(secondary.bucket, folder_map)
+    return (g1 == g2), None, None
+
+def verify_reason(it, args, auto_thr, spam_thr, folder_map):
     # only meaningful in two-pass mode
     p = it["primary"]
     s = it["secondary"]
 
+    movable_ok = {"newsletter_or_marketing", "social_notification", "transactional"}
+    if (
+        (p.bucket == "spam_or_scams" and s and s.bucket in movable_ok)
+        or (s and s.bucket == "spam_or_scams" and p.bucket in movable_ok)
+    ):
+        if folder_map.get("spam_or_scams"):
+            return "spam_override->quarantine"
+        
     # Not shortlisted => we never attempted secondary
     if s is None:
         # distinguish between "not shortlisted" vs "secondary error"
@@ -638,9 +725,11 @@ def verify_reason(it, args, auto_thr, spam_thr):
         if p.bucket != s.bucket:
             return f"bucket_mismatch({p.bucket}->{s.bucket})"
     else:
-        if bucket_group(p.bucket) != bucket_group(s.bucket):
-            return f"group_mismatch({bucket_group(p.bucket)}->{bucket_group(s.bucket)})"
-
+        g1 = bucket_dest_group(p.bucket, folder_map)
+        g2 = bucket_dest_group(s.bucket, folder_map)
+        if g1 != g2:
+            return f"group_mismatch({g1}->{g2})"
+        
     # Confidence checks (final move thresholds)
     # (report mode uses move thresholds to define "verified", so show which one failed)
     if p.bucket == "spam_or_scams":
@@ -715,11 +804,16 @@ def main():
     if acct_cfg.get("type") != "imap":
         raise RuntimeError("This MVP only supports IMAP accounts for now.")
 
+    auth_cfg = acct_cfg.get("auth", {})
+    auth_method = auth_cfg.get("method", "password")
+    
     acct = ImapAccount(
         host=acct_cfg["host"],
         port=int(acct_cfg.get("port", 993)),
         username=acct_cfg["username"],
-        password_env=acct_cfg["auth"]["password_env"],
+        auth_method=auth_method,
+        password_env=auth_cfg.get("password_env"),
+        access_token_env=auth_cfg.get("access_token_env"),
         mailbox=acct_cfg.get("mailbox", "INBOX"),
     )
 
@@ -741,9 +835,9 @@ def main():
         )
 
     print(f"Account={args.account} mailbox={acct.mailbox} dry_run={dry_run}")
-    print(f"Primary triage LLM: Ollama={ollama.base_url} model={ollama.model}")
+    print(f"Primary triage LLM: Ollama={ollama.base_url}, model={ollama.model}, context_length_tokens={context_length_tokens}")
     if secondary_ollama:
-        print(f"Secondary triage LLM: Ollama={secondary_ollama.base_url} model={secondary_ollama.model}")
+        print(f"Secondary triage LLM: Ollama={secondary_ollama.base_url}, model={secondary_ollama.model}, context_length_tokens={context_length_tokens}")
     print()
 
     run_start = time.perf_counter()
@@ -777,7 +871,7 @@ def main():
             f"{'idx':{idxw}}  "
             f"{'p_bucket':24} {'p_cf':>6}  "
             f"{'s_bucket':24} {'s_cf':>6}  "
-            f"{'why':24}  "
+            f"{'Consensus':24}  "
             f"{'subject'}"
         )
             print(header)
@@ -799,9 +893,9 @@ def main():
         processed = 0
         errors = 0
 
-        chars_to_llm = context_length_tokens * 4  # rough chars per token estimate; adjust as needed based on your model and typical email content
+        chars_to_llm = context_length_tokens * 4  # rough chars per token estimate; adjust as needed based on the model and typical email content
         chars_to_llm -= len(system_prompt)  # reserve chars for the LLM system prompt
-        chars_to_llm -= 250  # reserve chars for the JSON formatting and other prompt content
+        chars_to_llm -= 512  # reserve chars for the JSON formatting and other prompt content
         head_chars = int(chars_to_llm * 0.8)
         tail_chars = chars_to_llm - head_chars
 
@@ -810,7 +904,7 @@ def main():
             # Phase 0: Fetch emails from the inbox, snapshot into items
             # ----------------------------
             items: List[Dict[str, Any]] = []
-            for i, uid in enumerate(uids, 1):
+            for i, uid in enumerate(tqdm(uids, desc="Phase 0/3: Fetching emails", unit="email"), 1):
                 raw_bytes = imap.uid_fetch_rfc822(uid)
                 msg = BytesParser(policy=default).parsebytes(raw_bytes)
 
@@ -837,12 +931,13 @@ def main():
                     "primary_raw": None,
                     "secondary": None,
                     "secondary_raw": None,
+                    "secondary_error": None,
                 })
 
             # ----------------------------
             # Phase 1: primary model on all items
             # ----------------------------
-            for it in items:
+            for it in tqdm(items, desc=f"Phase 1/3: Primary triage using {ollama.model}", unit="email"):
                 try:
                     tri, raw = ollama.triage_email(
                         it["email_obj"],
@@ -891,7 +986,7 @@ def main():
                             shortlist.append(it)
 
                 if secondary_ollama is not None and shortlist:
-                    for it in shortlist:
+                    for it in tqdm(shortlist, desc=f"Phase 2/3: Secondary triage using {secondary_ollama.model}", unit="email"):
                         try:
                             tri2, raw2 = secondary_ollama.triage_email(
                                 it["email_obj"],
@@ -908,9 +1003,11 @@ def main():
                                 "subject": it["subj"],
                                 "message_id": it["email_obj"].get("message_id", ""),
                                 "error": f"secondary_llm_error: {e}",
+                                "secondary_error": str(e),
                             })
                             it["secondary"] = None
                             it["secondary_raw"] = None
+                            it["secondary_error"] = str(e)
 
             # ----------------------------
             # Phase 3: decide + log + (optional) move
@@ -950,23 +1047,31 @@ def main():
 
                 dest = decide_destination(p.bucket, folder_map)
 
+                forced_bucket = None
+                forced_dest = None
+
                 verified = True
                 if args.two_pass:
-                    verified = agree(p, s, args.agree)
+                    verified, forced_bucket, forced_dest = agree(p, s, args.agree, folder_map)
+
+                # If spam override triggered, use the forced destination (AI/Quarantine) and treat bucket as spam_or_scams
+                effective_bucket = forced_bucket or p.bucket
+                effective_dest = forced_dest or decide_destination(effective_bucket, folder_map)
 
                 # Final move gate: must be verified in two-pass mode
                 move_ok = (
                     (args.mode == "move")
                     and (not dry_run)
                     and (not it["never_move"])
-                    and (dest is not None)
-                    and p.auto_move_ok
+                    and (effective_dest is not None)
+                    and (p.auto_move_ok or forced_bucket is not None)
                     and verified
                     and (
-                        (p.bucket == "spam_or_scams" and p.confidence >= spam_thr)
-                        or (p.bucket != "spam_or_scams" and p.confidence >= auto_thr)
+                        (effective_bucket == "spam_or_scams" and p.confidence >= spam_thr)
+                        or (effective_bucket != "spam_or_scams" and p.confidence >= auto_thr)
                     )
                 )
+
 
                 # Write one record per email including both model outputs
                 record = {
@@ -990,6 +1095,7 @@ def main():
                         "signals": p.signals,
                         "perf": perf_p,
                         "model": ollama.model,
+                        "context_length_tokens": context_length_tokens,
                     },
                     "secondary": None if s is None else {
                         "bucket": s.bucket,
@@ -1000,9 +1106,14 @@ def main():
                         "signals": s.signals,
                         "perf": perf_s,
                         "model": secondary_ollama.model,
+                        "context_length_tokens": context_length_tokens,
                     },
+                    "bucket_effective": effective_bucket,
+                    "dest": effective_dest,
+                    "forced_bucket": forced_bucket,
+                    "forced_dest": forced_dest,
                     "verified": verified,
-                    "dest": dest,
+                    "dest_primary": dest,
                     "move_ok": move_ok,
                 }
                 write_jsonl_line(fp, record)
@@ -1015,7 +1126,7 @@ def main():
                     pconf = f"{p.confidence:.2f}"
                     sconf = f"{s.confidence:.2f}" if s else "—"
                     sbucket = s.bucket if s else "—"
-                    why = verify_reason(it, args, auto_thr, spam_thr)
+                    why = verify_reason(it, args, auto_thr, spam_thr, folder_map)
 
                     # print(f"[{it['idx']:>2}/{len(uids)}] {p.bucket:25} p={pconf:>4}  s={sbucket:25} s={sconf:>4}  <== {why:24}  {it['subj'][:40]}")
                     idx_str = fmt_idx(it["idx"], n, idxw)
@@ -1033,17 +1144,22 @@ def main():
                     print(f"{idx_str}  {p.bucket:24} {p.confidence:>6.2f}  {it['subj'][:60]}")
                 else:
                     print(f"\n[{it['idx']}/{len(uids)}] {it['subj'][:120]}")
+                    print(f"  date: {it['email_obj'].get('date', '')}")
                     print(f"  from: {it['sender']}")
                     if args.two_pass:
-                        print(f"  primary={p.bucket} {p.confidence:.2f} | secondary={(s.bucket if s else None)} {(s.confidence if s else 0):.2f} | agree={verified}")
-                    print(f"  bucket={p.bucket} conf={p.confidence:.2f} action={p.action} auto_move_ok={p.auto_move_ok}")
-                    print(f"  reason: {p.reason}")
-                    print(f"  dest: {dest}")
+                        print(f"  primary={p.bucket} -|- primary reason= {p.reason} -|- conf= {p.confidence:.2f}    ")
+                        print(f"  secondary={(s.bucket if s else None)} -|- secondary reason= {(s.reason if s else None)} -|- conf= {(s.confidence if s else 0):.2f} ")
+                        print(f"  agree={verified} ==> effective bucket: {effective_bucket}")
+                    else: 
+                        print(f"  bucket={p.bucket} conf={p.confidence:.2f} action={p.action} auto_move_ok={p.auto_move_ok}")
+                        print(f"  primary reason: {p.reason}")
+
+                    print(f"  dest: {effective_dest}")
 
                     if move_ok:
-                        print(f"  MOVING -> {dest}")
+                        print(f"  MOVING -> {effective_dest}")
                         try:
-                            imap.uid_move_message(it["uid"], dest)
+                            imap.uid_move_message(it["uid"], effective_dest)
                         except Exception as e:
                             print(f"  MOVE FAILED: {e}")
                     else:
@@ -1055,169 +1171,6 @@ def main():
                             print("  (not moved) two-pass did not verify")
                         else:
                             print("  (not moved) did not meet thresholds / no destination")
-
-        # with open(jsonl_path, "w", encoding="utf-8") as fp:
-        #     items = []  # each item has uid, msg, body, email_obj, sender, subj, record, etc.
-
-        #     for i, uid in enumerate(uids, 1):
-        #         raw_bytes = imap.uid_fetch_rfc822(uid)
-        #         msg = BytesParser(policy=default).parsebytes(raw_bytes)              
-
-        #         body = extract_body(msg)
-        #         body_sanitized = sanitize_urls(body)
-        #         body_excerpt = truncate_for_llm(body_sanitized, head_chars, tail_chars)
-
-        #         stats = url_stats(body)
-
-        #         email_obj = build_email_object(msg, body_excerpt, len(body), stats)
-        #         sender = msg.get("From", "")
-        #         subj = (msg.get("Subject", "") or "").strip()
-
-        #         # Gate: never auto-move from VIP domains/senders
-        #         never_move = should_never_move(sender, never_domains, never_senders)
-
-        #         # Decide whether to move
-        #         dest = decide_destination(triage.bucket, folder_map)
-
-
-        #         items.append({
-        #             "idx": i,
-        #             "uid": uid,
-        #             "sender": sender,
-        #             "subj": subj,
-        #             "body": body,
-        #             "email_obj": email_obj,
-        #             "never_move": never_move,
-        #             "primary": None,
-        #             "secondary": None,
-        #             "primary_raw": None,
-        #             "secondary_raw": None,
-        #         })
-                
-        #     for it in items:
-        #         try:
-        #             triage, raw = ollama.triage_email(it["email_obj"], system_prompt=system_prompt, context_length_tokens=context_length_tokens)
-        #             it["primary"] = triage
-        #             it["primary_raw"] = raw
-        #         except Exception as e:
-        #             errors += 1
-        #             write_jsonl_line(fp, {
-        #                 "account": args.account,
-        #                 # "imap_seq": msg_id.decode(errors="ignore"),
-        #                 "imap_uid": uid.decode(errors="ignore"),
-        #                 "date": email_obj.get("date", ""),
-        #                 "to": email_obj.get("to", ""),
-
-        #                 "message_id": email_obj.get("message_id", ""),
-        #                 "subject": subj,
-        #                 "from": sender,
-        #                 "error": str(e),
-        #             })
-        #             print(f"[{i}/{len(uids)}] {'LLM error':22} {0:.2f}  {subj[:30]:30}  <== {'LLM error: ' + str(e)[:80]}")
-        #             continue
-
-        #         # processed += 1
-        #         # bucket_counts[triage.bucket] = bucket_counts.get(triage.bucket, 0) + 1
-
-        #         # Performance stats from Ollama response (prompt_eval_count, eval_count, durations) :contentReference[oaicite:2]{index=2}
-        #         perf = {
-        #             "prompt_tokens": raw.get("prompt_eval_count"),
-        #             "gen_tokens": raw.get("eval_count"),
-        #             "prompt_ms": (raw.get("prompt_eval_duration", 0) or 0) / 1e6,
-        #             "gen_ms": (raw.get("eval_duration", 0) or 0) / 1e6,
-        #             "total_ms": (raw.get("total_duration", 0) or 0) / 1e6,
-        #             "model": ollama.model,
-        #         }
-
-        #         it["record"] = {
-        #             "account": args.account,
-        #             "imap_uid": uid.decode(errors="ignore"),
-        #             "date": email_obj.get("date", ""),
-        #             "from": sender,
-        #             "to": email_obj.get("to", ""),
-        #             "subject": subj,
-        #             "body_length": email_obj.get("body_length", 0),
-        #             "body_excerpt": email_obj.get("body_excerpt", ""),
-        #             "raw_body_preview": body[:2000],  # for quick inspection in report mode; adjust as needed
-        #             "body_truncated": email_obj.get("body_truncated"),
-        #             "message_id": email_obj.get("message_id", ""),
-        #             "bucket": triage.bucket,
-        #             "confidence": triage.confidence,
-        #             "action": triage.action,
-        #             "auto_move_ok": triage.auto_move_ok,
-        #             "reason": triage.reason,
-        #             "signals": triage.signals,
-        #             "perf": perf,
-        #         }
-        #         write_jsonl_line(fp, it["record"])
-
-        #     shortlist = []
-        #     for it in items:
-        #         if it["primary"] is None:
-        #             continue
-        #         primary_triage = it["primary"]
-        #         dest = decide_destination(primary_triage.bucket, folder_map)
-        #         # shortlist is broader than move gate
-        #         if (not it["never_move"]) and primary_triage.auto_move_ok and dest is not None:
-        #             if primary_triage.bucket == "spam_or_scams":
-        #                 if primary_triage.confidence >= max(spam_thr, args.shortlist_threshold):
-        #                     shortlist.append(it)
-        #             else:
-        #                 if primary_triage.confidence >= args.shortlist_threshold:
-        #                     shortlist.append(it)
-
-        #     if args.two_pass and secondary_ollama is not None and shortlist:
-        #         for it in shortlist:
-        #             try:
-        #                 tri2, raw2 = secondary_ollama.triage_email(it["email_obj"], system_prompt=system_prompt, context_length_tokens=context_length_tokens)
-        #                 it["secondary"] = tri2
-        #                 it["secondary_raw"] = raw2
-        #             except Exception as e:
-        #                 # keep secondary=None; log it if you want
-        #                 it["secondary"] = None            
-
-
-        #         # Lightweight console output in report mode:
-        #         if args.mode == "report":
-        #             print(f"[{i}/{len(uids)}] {triage.bucket:22} {triage.confidence:.2f}  {subj[:30]:30}  <== {triage.reason[:80]}")
-        #         elif args.mode == "move":
-        #             # print more details and attempt moves based on policy
-
-
-
-
-        #             subj = (msg.get("Subject", "") or "").strip()
-        #             print(f"\n[{i}/{len(uids)}] {subj[:120]}")
-        #             print(f"  from: {sender}")
-        #             print(f"  bucket={triage.bucket} conf={triage.confidence:.2f} action={triage.action} auto_move_ok={triage.auto_move_ok}")
-        #             print(f"  reason: {triage.reason}")
-        #             print(f"  perf: {perf}")
-
-
-        #             move_ok = (
-        #                 (not dry_run)
-        #                 and (not never_move)
-        #                 and triage.auto_move_ok
-        #                 and dest is not None
-        #                 and (
-        #                     (triage.bucket == "spam_or_scams" and triage.confidence >= spam_thr)
-        #                     or (triage.bucket != "spam_or_scams" and triage.confidence >= auto_thr)
-        #                 )
-        #             )
-
-        #             if move_ok:
-        #                 print(f"  MOVING -> {dest}")
-        #                 try:
-        #                     imap.uid_move_message(uid, dest)
-        #                 except Exception as e:
-        #                     print(f"  MOVE FAILED: {e}")
-        #             else:
-        #                 if dest and triage.auto_move_ok and not dry_run and not never_move:
-        #                     print(f"  (not moved) would move -> {dest} once confidence >= threshold")
-        #                 elif never_move:
-        #                     print("  (not moved) blocked by never-move allowlist")
-        #                 elif dry_run:
-        #                     print("  (not moved) dry_run")
 
     elapsed_s = time.perf_counter() - run_start
     print(f"\nTotal time: {elapsed_s:.1f}s ({elapsed_s/60:.2f} min)")
