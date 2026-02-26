@@ -33,6 +33,7 @@ Local-LLM email triage for IMAP inboxes (Gmail/Yahoo/Office365), with safe defau
 
 - Python 3.10+
 - Ollama running locally or reachable by URL
+  - Open a browser and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
 - One IMAP account configured in `config.yaml`
 
 If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
