@@ -772,6 +772,7 @@ def main():
     primary_triage.add_argument("--outdir", default="runs", help="Directory to write JSONL reports/logs")
     primary_triage.add_argument("--dry-run", action="store_true", help="Do not move anything (only relevant for --mode move)")
     primary_triage.add_argument("--two-pass", action="store_true", help="Use primary model on all emails, then verify candidates with a secondary model.")
+    primary_triage.add_argument("--primary-model", default=None, help="Primary model name override for triage (single-pass and two-pass). If omitted, uses OLLAMA_MODEL env var or config.yaml.")
     primary_triage.add_argument("--secondary-model", default="qwen3:8b", help="Secondary model name for two-pass verification.")
     primary_triage.add_argument("--shortlist-threshold", type=float, default=0.85, help="Primary confidence threshold to send to secondary model.")
     primary_triage.add_argument("--agree", choices=["bucket", "group"], default="bucket", help="Require agreement on exact bucket or on move-group.")
@@ -827,12 +828,18 @@ def main():
         mailbox=acct_cfg.get("mailbox", "INBOX"),
     )
 
+    primary_model = (
+        getattr(args, "primary_model", None)
+        or os.getenv("OLLAMA_MODEL")
+        or oll["model"]
+    )
+
     ollama = OllamaClient(
         # base_url should be either be read from the os environment variable, or if not present, read from the config file.
         # This allows for flexibility in deployment (e.g., can set env var in production without changing config file, 
         #   and also keeps sensitive info like API keys out of config files).
         base_url=os.getenv("OLLAMA_BASE_URL", oll["base_url"]),
-        model=os.getenv("OLLAMA_MODEL", oll["model"]),
+        model=primary_model,
         timeout_s=int(oll.get("timeout_s", 120)),
     )
 
