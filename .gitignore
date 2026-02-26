@@ -34,7 +34,6 @@ Thumbs.db
 Desktop.ini
 
 # ---- Secrets / config ----
-config.yaml
 *.env
 .env
 .env.*

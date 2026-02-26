@@ -65,6 +65,8 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
+
+
 3. Configure `config.yaml`.
 
 - Set `ollama.base_url`, `ollama.model`, and policy values.
@@ -75,10 +77,17 @@ python -m pip install -r requirements.txt
 For Exchange accounts, we use OATH2 path. As such, you can skip the next section (nothing to set in the .env). The first time you run the program, it will give you a link and token to enter. Open the link in your browser and enter the generated code and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
 
 For gmail and Yahoo accounts, you currently need to setup an `App Password`, and put it in the .env file (next section). Follow the instructions for [gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html). 
+Also put each IMAP account username in `.env` and reference it from `config.yaml` using `auth.username_env`.
 
 5. Put secrets in `.env` (or your shell environment).
 
-Anything you put in this file will become and environment variable and the program picks it up that way. 
+There is a `env.example.txt` file included. First, make a `.env` using it as a template:
+```
+cp env.example.txt .env
+```
+
+
+Anything you put in this file will become an environment variable and the program picks it up that way. 
 
 Examples:
 
@@ -86,6 +95,11 @@ Examples:
 # IMAP app passwords
 GMAIL_APP_PASSWORD=...
 YAHOO_APP_PASSWORD=...
+
+# IMAP usernames
+GMAIL_IMAP_USERNAME=...
+YAHOO_IMAP_USERNAME=...
+UIUC_IMAP_USERNAME=...
 
 # Optional Ollama overrides
 # OLLAMA_BASE_URL=http://localhost:11434
@@ -98,7 +112,6 @@ M365_TENANT=organizations
 # optional cache file override
 M365_TOKEN_CACHE=.msal_token_cache.bin
 ```
-
 
 ## Core Commands
 
@@ -155,6 +168,7 @@ python mailtriage.py triage --account uiuc --mode report --limit 10 --two-pass -
 - `policy.spam_quarantine_threshold`: minimum confidence for spam quarantine
 - `policy.folder_map`: bucket -> destination IMAP folder
 - `accounts.<name>.auth.method`: `password` or `xoauth2`
+- `accounts.<name>.auth.username_env`: env var for IMAP username
 - `accounts.<name>.auth.password_env`: env var for password auth
 - `accounts.<name>.auth.access_token_env`: env var for OAuth token
 
@@ -192,6 +206,8 @@ pytest -q -m integration
 
 - `Missing env var for IMAP password`:
   - Set the env var named by `auth.password_env`.
+- `Missing env var for IMAP username`:
+  - Set the env var named by `auth.username_env`.
 - `XOAUTH2 auth failed`:
   - Verify token validity/scope and account settings.
 - `Empty message.content` or schema parse errors:

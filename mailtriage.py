@@ -422,15 +422,28 @@ def xoauth2_sasl_bytes(username: str, access_token: str) -> bytes:
 class ImapAccount:
     host: str
     port: int
-    username: str
     auth_method: str = "password"  # "password" or "xoauth2"
+    username: Optinal[str] = None
+    username_env: Optional[str] = None
     password_env: Optional[str] = None
     access_token_env: Optional[str] = None
     mailbox: str = "INBOX"
 
+    def get_username(self) -> str:
+        # Prefer explicit username (non-secret) from config.yaml
+        if self.username:
+            return self.username
+        # Fallback to username_env if provided
+        if not self.username_env:
+            raise RuntimeError("No username configured (set accounts.<name>.username or auth.username_env)")
+        username = os.getenv(self.username_env)
+        if not username:
+            raise RuntimeError(f"Missing env var for IMAP username: {self.username_env}")
+        return username
+
     def get_password(self) -> str:
         if not self.password_env:
-            raise RuntimeError("password_env not configured for password auth")
+            raise RuntimeError("password_env not configured for app password auth")
         pw = os.getenv(self.password_env)
         if not pw:
             raise RuntimeError(f"Missing env var for IMAP password: {self.password_env}")
@@ -467,15 +480,10 @@ class ImapClient:
         
         # Authenticate based on method
         if self.acct.auth_method == "password":
-            self.conn.login(self.acct.username, self.acct.get_password())
+            self.conn.login(self.acct.get_username(), self.acct.get_password())
         elif self.acct.auth_method == "xoauth2":
-            token = self.acct.get_access_token()
-            # b64 = xoauth2_b64(self.acct.username, token)
-            # typ, data = self.conn.authenticate("XOAUTH2", lambda _: b64)
-            # if typ != "OK":
-            #     raise RuntimeError(f"XOAUTH2 authentication failed: {typ} {data}")
-            
-            sasl = xoauth2_sasl_bytes(self.acct.username, token)
+            token = self.acct.get_access_token()          
+            sasl = xoauth2_sasl_bytes(self.acct.get_username(), token)
             typ, data = self.conn.authenticate("XOAUTH2", lambda _: sasl)
             if typ != "OK":
                 raise RuntimeError(f"XOAUTH2 auth failed: {typ} {data}")            
@@ -807,11 +815,13 @@ def main():
     auth_cfg = acct_cfg.get("auth", {})
     auth_method = auth_cfg.get("method", "password")
     
+   
     acct = ImapAccount(
         host=acct_cfg["host"],
         port=int(acct_cfg.get("port", 993)),
-        username=acct_cfg["username"],
         auth_method=auth_method,
+        username=acct_cfg.get("username"),                 # <-- take from config
+        username_env=auth_cfg.get("username_env"),         # <-- optional, from auth
         password_env=auth_cfg.get("password_env"),
         access_token_env=auth_cfg.get("access_token_env"),
         mailbox=acct_cfg.get("mailbox", "INBOX"),

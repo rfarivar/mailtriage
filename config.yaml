@@ -1,0 +1,57 @@
+ollama:
+  base_url: "http://localhost:11434"
+  model: "llama3.1:8b"   # or qwen3:8b, deepseek-r1:8b, is overridable via OLLAMA_MODEL env var
+  timeout_s: 120
+  context_length_tokens: 4096   # for llama 3.1:8b and qwen3:8b and deepseek-r1:8b has to remain under 8K or spills into CPU; is overridable via OLLAMA_CONTEXT_LENGTH_TOKENS env var
+
+policy:
+  dry_run: False
+  auto_move_threshold: 0.9
+  spam_quarantine_threshold: 0.92
+  never_move_from_domains:
+    - "illinois.edu"
+    - "uiuc.edu"
+  never_move_from_senders:
+    - "boss@company.com"
+  folder_map:
+    newsletter_or_marketing: "AI/Promotions"
+    social_notification: "AI/Social"
+    spam_or_scams: "AI/Quarantine"
+    transactional: "AI/Receipts"
+
+accounts:
+  yahoo:
+    type: imap
+    host: imap.mail.yahoo.com
+    port: 993
+    ssl: true
+    mailbox: INBOX
+    auth:
+      method: password
+      username_env: YAHOO_IMAP_USERNAME
+      password_env: YAHOO_APP_PASSWORD
+
+  gmail:
+    type: imap
+    host: imap.gmail.com
+    port: 993
+    ssl: true
+    mailbox: INBOX
+    auth:
+      method: password          # easiest if you have an app password
+      username_env: GMAIL_IMAP_USERNAME
+      password_env: GMAIL_APP_PASSWORD
+      # OR:
+      # method: xoauth2
+      # access_token_env: GMAIL_OAUTH_ACCESS_TOKEN
+
+  uiuc:
+    type: imap
+    host: outlook.office365.com
+    port: 993
+    ssl: true
+    mailbox: INBOX
+    auth:
+      method: xoauth2
+      username_env: UIUC_IMAP_USERNAME
+      access_token_env: UIUC_OAUTH_ACCESS_TOKEN
