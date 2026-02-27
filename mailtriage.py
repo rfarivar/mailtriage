@@ -423,7 +423,7 @@ class ImapAccount:
     host: str
     port: int
     auth_method: str = "password"  # "password" or "xoauth2"
-    username: Optinal[str] = None
+    username: Optional[str] = None
     username_env: Optional[str] = None
     password_env: Optional[str] = None
     access_token_env: Optional[str] = None
