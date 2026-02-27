@@ -83,7 +83,7 @@ Email account configuration is managed in the `config.yaml` file. The file alrea
 * Yahoo Mail
 * Microsoft 365 Exchange
 
-Your `username` and `password` are secrets and should not be stored in the `config.yaml`. Instead, Store all secrets in the `.env` file (or defined in your shell environment).
+Your `username` and `password` are secrets and should not be stored in the `config.yaml`. Instead, store all secrets in the `.env` file (or defined in your shell environment).
 
 An `env.example.txt` file is provided as a template in the repo. Create your `.env` file by copying it:
 
@@ -95,25 +95,23 @@ cp env.example.txt .env
 
 For Gmail and Yahoo accounts, you must generate an `App Password` (a one-time password dedicated to this application). Follow the official [Gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) instructions to create the App Password.
 
-Once generated, open the .env file in your preferred editor and add:
+Once generated, open the `.env` file in your preferred editor and add:
 * Username and App Password for Gmail and Yahoo accounts
 
 Leave the fields for any unused accounts blank.
-All values defined in the .env file are loaded as environment variables and automatically used by the application.
+All values defined in the `.env` file are loaded as environment variables and automatically used by the application.
 
 
 #### Microsoft 365 Exchange
 
 For Microsoft 365 Exchange accounts, OAuth2 authentication is used. 
 
-Open the .env file in your preferred editor and add:
-* Client ID and Tenant ID for Microsoft 365 Exchange accounts
+Open the `.env` file in your preferred editor and add:
+* `Client ID` and `Tenant ID` for Microsoft 365 Exchange accounts
 * Your username for the exchange account
 
 The first time you run the program, it will provide a URL and a verification code in the console. Open the URL in your browser, enter the generated code, and complete the standard Microsoft login process.
 After authentication is complete, the program will automatically resume and begin fetching your emails. The resulting authentication token will be saved to the `.msal_token_cache.bin` file for future use.
-
-- There are many other customization options in `config.yaml` which you can customize later.
 
 ## Core Commands
 
@@ -127,10 +125,10 @@ python mailtriage.py folders --account gmail
 ```
 
 ### Dry-run triage report (recommended first)
-Run a report-only triage to preview actions without moving any emails:
+Run a report-only triage (on the latest 5 emails in your inbox) to preview actions without moving any emails:
 
 ```
-python mailtriage.py triage --account gmail --limit 5 --unseen --mode report
+python mailtriage.py triage --account gmail --limit 5 --mode report
 ```
 
 ### Move mode
