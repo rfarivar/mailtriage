@@ -83,54 +83,74 @@ Email account configuration is managed in the `config.yaml` file. The file alrea
 * Yahoo Mail
 * Microsoft 365 Exchange
 
-But we don't want your username and password be there. They should be placed in the `.env` file. (`config.yaml` pulls from `.env`).
+Your `username` and `password` are secrets and should not be stored in the `config.yaml`. Instead, Store all secrets in the `.env` file (or defined in your shell environment).
 
-There is a `env.example.txt` file included in the repo. First, make a `.env` file from it as a template:
+An `env.example.txt` file is provided as a template in the repo. Create your `.env` file by copying it:
+
 ```
 cp env.example.txt .env
 ```
 
 #### Gmail and Yahoo Mail
 
-
 For Gmail and Yahoo accounts, you must generate an `App Password` (a one-time password dedicated to this application). Follow the official [Gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) instructions to create the App Password.
 
-Once generated, add the App Password, along with your username, to the .env file. Note that anything you put in this file will become an environment variable, and the application picks up the information that way. 
+Once generated, open the .env file in your preferred editor and add:
+* Username and App Password for Gmail and Yahoo accounts
+
+Leave the fields for any unused accounts blank.
+All values defined in the .env file are loaded as environment variables and automatically used by the application.
+
 
 #### Microsoft 365 Exchange
 
-For Microsoft 365 Exchange accounts, we use OATH2 path. The first time you run the program, it will give you a link and a token to enter. Open the link in your browser and enter the generated code, and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
+For Microsoft 365 Exchange accounts, OAuth2 authentication is used. 
 
-- There are many other setup options in `config.yaml` which you can customize later.
+Open the .env file in your preferred editor and add:
+* Client ID and Tenant ID for Microsoft 365 Exchange accounts
+* Your username for the exchange account
+
+The first time you run the program, it will provide a URL and a verification code in the console. Open the URL in your browser, enter the generated code, and complete the standard Microsoft login process.
+After authentication is complete, the program will automatically resume and begin fetching your emails. The resulting authentication token will be saved to the `.msal_token_cache.bin` file for future use.
+
+- There are many other customization options in `config.yaml` which you can customize later.
 
 ## Core Commands
 
 ### Ensure destination folders exist
 
-The mailtriage program will move the emails to folders in your inbox such as AI/Promotions, AI/Social, etc. The first time you run the program, use the following command to setup the folders for you.
+The mailtriage program moves emails into folders such as AI/Promotions, AI/Social, etc.
+Before running triage for the first time, create the required folders with:
 
 ```
 python mailtriage.py folders --account gmail
 ```
 
 ### Dry-run triage report (recommended first)
-
+Run a report-only triage to preview actions without moving any emails:
 
 ```
-python mailtriage.py --config config.yaml triage --account gmail --limit 200 --unseen --mode report
+python mailtriage.py --config config.yaml triage --account gmail --limit 5 --unseen --mode report
 ```
 
 ### Move mode
 
-```
-python mailtriage.py --config config.yaml triage --account gmail --limit 200 --unseen --mode move
-```
-
-
-Add `--dry-run` to force no moves even in move mode.
+To move emails based on the triage results:
 
 ```
-python mailtriage.py --config config.yaml triage --account gmail --limit 200 --unseen --mode move
+python mailtriage.py triage --account gmail --limit 5 --mode move
+```
+
+To prevent any emails from being moved (even in move mode), add the `--dry-run` flag:
+
+```
+python mailtriage.py triage --account gmail --limit 5 --mode move --dry-run`
+```
+
+You can add the `--unseen` option to run the analysis only on unread emails:
+
+```
+python mailtriage.py triage --account gmail --limit 5 --unseen --mode move
 ```
 
 ### Two-pass verification
