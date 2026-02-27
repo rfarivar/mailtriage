@@ -42,9 +42,10 @@ If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
 
 1. Ensure [Ollama](https://github.com/ollama/ollama?tab=readme-ov-file#download) is installed. 
   - After you have installed Ollama ([instructions here](https://github.com/ollama/ollama?tab=readme-ov-file#download)), open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
-  - Pull the models you need to run. If you want only one, the first one in this list is all you need: 
+  - Pull the models you need to run. By default, the app is configured to use llama3.1:8b, so make sure to at least pull this model. 
   ```
   ollama pull llama3.1:8b
+
   ollama pull qwen3:8b
   ollama pull llama3.2
   ```
@@ -61,11 +62,9 @@ python -m venv .venv
 bash/macOS:
 
 ```bash
-python3 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 ```
-
-**Note**: In the rest of this document, I will simply use `python` in presented CLI commands. You should use the correct python invocation for your environment, which can be either `python` or `python3`. 
 
 3. Install dependencies.
 
@@ -73,17 +72,18 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-4. Configure `config.yaml`.
+4. Email setup
 
-- Set `ollama.base_url`, `ollama.model`, and policy values.
-- Add at least one account under `accounts`.
+To setup your email account, you generally define an account in the `config.yaml` file. To get you a headstart, it already has a placeholder for a gmail account, a Yahoo mail account and a Microsoft 365 Exchnage email.
 
-5. Email Setup
+- You should have at least one email account setup.
+- There are many other setup options in `config.yaml` which you can customize later.
 
-For Exchange accounts, we use OATH2 path. As such, you can skip the next section (nothing to set in the .env). The first time you run the program, it will give you a link and token to enter. Open the link in your browser and enter the generated code and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
+For gmail and Yahoo accounts, you currently need to set up an `App Password` which is a one-time password dedicated to this app. Follow the instructions for [gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) to generate the App Password. 
 
-For gmail and Yahoo accounts, you currently need to setup an `App Password`, and put it in the .env file (next section). Follow the instructions for [gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html). 
-Also put each IMAP account username in `.env` and reference it from `config.yaml` using `auth.username_env`.
+Once you have the app password, you need to enter it in the `.env` file, alongside your username. See the next section.
+
+For Microsoft 365 Exchange accounts, we use OATH2 path. The first time you run the program, it will give you a link and a token to enter. Open the link in your browser and enter the generated code, and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
 
 6. Put secrets in `.env` (or your shell environment).
 
