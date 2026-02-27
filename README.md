@@ -5,29 +5,15 @@ Local-LLM email triage for IMAP inboxes (Gmail/Yahoo/Office365), with safe defau
 ## What It Does
 
 - Connects to an IMAP mailbox and fetches recent messages.
-- Extracts and normalizes email content (plain text preferred, HTML fallback).
+- Extracts and normalizes email content.
 - Sends structured classification requests to an Ollama model.
-- Assigns each email to one bucket:
-  - `needs_attention`
-  - `transactional`
-  - `security_alert`
-  - `calendar_or_travel`
-  - `newsletter_or_marketing`
-  - `social_notification`
-  - `spam_or_scams`
-  - `uncertain`
-- Applies deterministic move policy in code (not model-defined).
+- Moves each email to one of the following folders in your email account:
+  - `AI/Promotions`
+  - `AI/Social`
+  - `AI/Quarantine`
+  - `AI/Receipts`
 - Writes JSONL logs for every processed email.
 - Supports optional two-pass verification with a secondary model before moving.
-
-## Safety Model
-
-- `--mode report` is read-only (recommended first).
-- `--mode move` only moves when policy checks pass.
-- `policy.dry_run: true` or `--dry-run` prevents moving, even if `mode` is set to `move`.
-- `never_move_from_domains` and `never_move_from_senders` in the `config.yaml` file are hard blocks.
-- Two-pass mode can require model agreement (`--two pass --secondary-model qwen3:8b`) 
-- For two-pass mode, you can either require both models come up with the exact same bucket, or allow some wiggle room with the grouping mode (`--agree bucket|group`).
 
 ## Requirements
 
@@ -35,14 +21,11 @@ Local-LLM email triage for IMAP inboxes (Gmail/Yahoo/Office365), with safe defau
 - Ollama running locally or reachable by URL
 - One IMAP account configured in `config.yaml`
 
-If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
-
-
 ## Quick Start
 
 ### 1. Install Ollama 
   - Follow ([instructions here](https://github.com/ollama/ollama?tab=readme-ov-file#download)) to install Ollama.
-  - Open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
+  - To verify the installation, open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
   - Pull the required LLM models. By default, the app is configured to use `llama3.1:8b`, so ensure to at least pull this model. 
   ```
   ollama pull llama3.1:8b
@@ -93,7 +76,7 @@ cp env.example.txt .env
 
 #### Gmail and Yahoo Mail
 
-For Gmail and Yahoo accounts, you must generate an `App Password` (a one-time password dedicated to this application). Follow the official [Gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) instructions to create the App Password.
+For Gmail and Yahoo accounts, you must generate an `App Password` (a one-time password dedicated to this application, NOT your regular password). Follow the official [Gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) instructions to create the App Password.
 
 Once generated, open the `.env` file in your preferred editor and add:
 * Username and App Password for Gmail and Yahoo accounts
@@ -239,6 +222,17 @@ Each run writes JSONL in `runs/` by default, which may be useful for debugging o
   - effective bucket/destination
   - `verified` and `move_ok`
   - timing/token counters from Ollama response
+
+
+## Safety Model
+
+- `--mode report` is read-only (recommended first).
+- `--mode move` only moves when policy checks pass.
+- `policy.dry_run: true` or `--dry-run` prevents moving, even if `mode` is set to `move`.
+- `never_move_from_domains` and `never_move_from_senders` in the `config.yaml` file are hard blocks.
+- Two-pass mode can require model agreement (`--two pass --secondary-model qwen3:8b`) 
+- For two-pass mode, you can either require both models come up with the exact same bucket, or allow some wiggle room with the grouping mode (`--agree bucket|group`).
+
 
 ## Tests
 
