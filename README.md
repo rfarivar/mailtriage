@@ -130,7 +130,7 @@ python mailtriage.py folders --account gmail
 Run a report-only triage to preview actions without moving any emails:
 
 ```
-python mailtriage.py --config config.yaml triage --account gmail --limit 5 --unseen --mode report
+python mailtriage.py triage --account gmail --limit 5 --unseen --mode report
 ```
 
 ### Move mode
