@@ -33,7 +33,6 @@ Local-LLM email triage for IMAP inboxes (Gmail/Yahoo/Office365), with safe defau
 
 - Python 3.10+
 - Ollama running locally or reachable by URL
-  - Open a browser and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
 - One IMAP account configured in `config.yaml`
 
 If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
@@ -41,7 +40,16 @@ If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
 
 ## Quick Start
 
-1. Create and activate a virtual environment.
+1. Ensure [Ollama](https://github.com/ollama/ollama?tab=readme-ov-file#download) is installed. 
+  - After you have installed Ollama ([instructions here](https://github.com/ollama/ollama?tab=readme-ov-file#download)), open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
+  - Pull the models you need to run. If you want only one, the first one in this list is all you need: 
+  ```
+  ollama pull llama3.1:8b
+  ollama pull qwen3:8b
+  ollama pull llama3.2
+  ```
+
+2. Create and activate a Python virtual environment.
 
 PowerShell in Windows:
 
@@ -59,28 +67,25 @@ source .venv/bin/activate
 
 **Note**: In the rest of this document, I will simply use `python` in presented CLI commands. You should use the correct python invocation for your environment, which can be either `python` or `python3`. 
 
-2. Install dependencies.
-
+3. Install dependencies.
 
 ```
 python -m pip install -r requirements.txt
 ```
 
-
-
-3. Configure `config.yaml`.
+4. Configure `config.yaml`.
 
 - Set `ollama.base_url`, `ollama.model`, and policy values.
 - Add at least one account under `accounts`.
 
-4. Email Setup
+5. Email Setup
 
 For Exchange accounts, we use OATH2 path. As such, you can skip the next section (nothing to set in the .env). The first time you run the program, it will give you a link and token to enter. Open the link in your browser and enter the generated code and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
 
 For gmail and Yahoo accounts, you currently need to setup an `App Password`, and put it in the .env file (next section). Follow the instructions for [gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html). 
 Also put each IMAP account username in `.env` and reference it from `config.yaml` using `auth.username_env`.
 
-5. Put secrets in `.env` (or your shell environment).
+6. Put secrets in `.env` (or your shell environment).
 
 There is a `env.example.txt` file included. First, make a `.env` using it as a template:
 ```
@@ -152,12 +157,57 @@ By default, the application uses llama3.1:8b (configurable in the `config.yaml` 
 python mailtriage.py --config config.yaml triage --account gmail --mode report --two-pass --secondary-model qwen3:8b --shortlist-threshold 0.85 --agree bucket
 ```
 
+## How to run
+
+I want to share some of my experiences in running the Mail Triage program.
+
+1. Which model runs the best?
+
+I have experimented with four models: llama3.1:8b, qwen3:8b, deepseek-r1:8b and llama3.2:3b. In my experience, Llama3.1:8b is the best model to run, as it consistently makes meaningful judgement, and generates JSON output the way it is instructed. It does take the longest to run. Next is Qwen3. It seems to make a deeper analysis which is good, and is a bit faster to run, but occasioanly exceeds the output token limit, in which case the program considers the output as invalid. Lama3.2:3b is much faster to run, but the quality of the results are not as good as LLama3.1:8b. It may be possible to get higher quality from it with better prompting. Finally, deepseek-r1 is good at thinking, however, it frequently creates output that does not match the requested JSON format, and as such, I have not focused on it so far. 
+
+2. How fast are the models?
+
+The following numbers are collected from a run with 20 emails. Context is set to 4096 tokens. (In general, the longer the context, the slower your performance. For the 3080 card, 4096 is the sweetspot, and should handle about 14 thousand charachter emails, which should be enough to make a decision on the nature of the email.) The following table shows the triage phase time for each email in a 20-run batch.
+
+System specs: 
+Desktop: Intel Core i7 12700K, 64GB RAM, NVIDIA 3080 GPU
+Laptop: Macbook Pro M2 13" (2022), 24GB RAM
+
+| Model | Performance on NVIDIA 3080 10GB | Performance on Macbook Pro M2 | Comments |
+|:---|:---|:---|:---|
+| LLama3.1:8b | 2.41 seconds | 17.65 seconds | The best quality and consistency for the model size |
+| Qwen3:8b | 1.90 seconds | 21.13 | Good reasoning ability, but sometimes misses the output format |
+| Deepseek-r1 | 1.95 seconds | 18.95 | Frequently misses the output format
+| LLama3.2:8b | 1.47 seconds | 7.61 | Very fast, but the quality is not always great |
+| gpt-oss:20b | 38 seconds| 25.93 | Much slower on the NVIDIA 3080 due to the model needing more VRAM, and therefore mixed use of GPU and CPU and the overhead of different layers moving in and out of the GPU VRAM, to the point that it runs slows on the desktop than the laptop, which can fit everything in the memory due to the unified memory architecture |
+
+Note that each switching and reloading of a different model has a certain amount of overhead. This also happens to be the reason in the two-pass method, we run one batch of emails on one model, and then switch. Otherwise the overhead of switching can be as high as 150%!
+
+3. What is the experience like On a laptop? Does it slow down my laptop?
+While running the inference, the CPU of the (Macbook Pro M2) laptop is relatively untouched, with all the efficiency and performance cores mostly remaining free. The built-in GPU however runs at around 95% utilization and the laptop discharges at a rate of around 32 watts. So the OS remains snappy and doesn't feel slowed down thanks to offlaoding on the GPU, but it will impact the battery consumption. Once the work stops, the laptop goes back to 4~5 watts discharge rate.
+
+Assuming you receive and process 10 new emails per hour, this processing may take about 3~5 minutes on an M2 laptop, so you can expect 5%~8% extra battery draining than your normal use, or remaining 92%~95% the same. From the point of view of slowing the system down, you would barely notice it running in the background, since the CPU is mostly not involved. You may notice that occasionaly your laptop fan starts working for a few minutes, and it may get a bit warmer. 
+
+On a desktop PC with a GPU, you barely notice anything happening, and you could process over 1000 emails per hour!
+
+4. How much RAM do you need?
+If you have a GPU with VRAM, the following need to fit in the GPU memory: 
+- Quantized model weights. For an 8-billion parameter class model (like llama3.1:8b or qwen3:8b), that's about 4 ~ 4.5GB.
+- Context window. The exact value depends on the size of the hidden state of each model (4096 for Llama3.1), the number of transformer layers (e.g. 3.1), the number of attention heads, and the type of attention heads (MHA, GQA, MQA). For the models we focus on here and for a 4096 token context, it would require about 2 to 4 GB of VRAM. 
+
+
+5. Two-pass run
+
+You can make the program more conservative, to move only emails where two separate models have concensus on the nature of that email. Here, you can either be very strict and only move emails where both models tag exactly the same, or you can allow some room for approximate behavior using the group option.
+
 `--agree group` compares destination intent (folder group) instead of exact bucket.
 
-As a point of reference, I typically use the program as follows: 
+As a point of reference, I typically use the program as follows if I want it to be very conservative: 
 ```
 python mailtriage.py triage --account uiuc --mode report --limit 10 --two-pass --secondary-model qwen3:8b --agree group
 ```
+
+Hoever, in practice, LLama3.1:8b has proven itself to be almost always correct. 
 
 ## Config Notes (`config.yaml`)
 
@@ -177,7 +227,7 @@ For `xoauth2`, if `access_token_env` is missing at runtime and M365 env vars are
 
 ## Output and Logs
 
-Each run writes JSONL in `runs/` by default:
+Each run writes JSONL in `runs/` by default, which may be useful for debugging or seeing the full LLM reasoning for each email:
 
 - Filename pattern: `<account>_<YYYYMMDD_HHMMSS>.jsonl`
 - Includes:
