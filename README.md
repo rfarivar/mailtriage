@@ -193,7 +193,7 @@ On a desktop PC with a GPU, you barely notice anything happening, and you could 
 4. How much RAM do you need?
 If you have a GPU with VRAM, the following need to fit in the GPU memory: 
 - Quantized model weights. For an 8-billion parameter class model (like llama3.1:8b or qwen3:8b), that's about 4 ~ 4.5GB.
-- Context window. The exact value depends on the size of the hidden state of each model (4096 for Llama3.1), the number of transformer layers (e.g. 3.1), the number of attention heads, and the type of attention heads (MHA, GQA, MQA). For the models we focus on here and for a 4096 token context, it would require about 2 to 4 GB of VRAM. 
+- Context window. The exact value depends on the size of the hidden state of each model (4096 for Llama3.1), the number of transformer layers (e.g. 32 layers), the number of attention heads, and the type of attention heads (MHA, GQA, MQA). For the models we focus on here and for a 4096 token context, they typically require about 2 to 4 GB of additional VRAM. 
 
 
 5. Two-pass run
