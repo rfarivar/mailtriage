@@ -40,17 +40,20 @@ If your system maps `python`/`pip` differently, use `python3`/`pip3` instead.
 
 ## Quick Start
 
-1. Ensure [Ollama](https://github.com/ollama/ollama?tab=readme-ov-file#download) is installed. 
-  - After you have installed Ollama ([instructions here](https://github.com/ollama/ollama?tab=readme-ov-file#download)), open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
-  - Pull the models you need to run. By default, the app is configured to use llama3.1:8b, so make sure to at least pull this model. 
+### 1. Install Ollama 
+  - Follow ([instructions here](https://github.com/ollama/ollama?tab=readme-ov-file#download)) to install Ollama.
+  - Open a browser tab and go to [http://localhost:11434](http://localhost:11434). You should see the sentence `Ollama is running` in your browser. 
+  - Pull the required LLM models. By default, the app is configured to use `llama3.1:8b`, so ensure to at least pull this model. 
   ```
   ollama pull llama3.1:8b
-
+  ```
+To experiment with other models or to try the two-pass mode, you need to install other models as well. 
+  ```
   ollama pull qwen3:8b
   ollama pull llama3.2
   ```
 
-2. Create and activate a Python virtual environment.
+### 2. Create and activate a Python virtual environment.
 
 PowerShell in Windows:
 
@@ -66,58 +69,39 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-3. Install dependencies.
+### 3. Install dependencies.
 
 ```
 python -m pip install -r requirements.txt
 ```
 
-4. Email setup
+### 4. Email setup
 
-To setup your email account, you generally define an account in the `config.yaml` file. To get you a headstart, it already has a placeholder for a gmail account, a Yahoo mail account and a Microsoft 365 Exchnage email.
+Email account configuration is managed in the `config.yaml` file. The file already includes placeholders for the following account types:
 
-- You should have at least one email account setup.
-- There are many other setup options in `config.yaml` which you can customize later.
+* Gmail
+* Yahoo Mail
+* Microsoft 365 Exchange
 
-For gmail and Yahoo accounts, you currently need to set up an `App Password` which is a one-time password dedicated to this app. Follow the instructions for [gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) to generate the App Password. 
+But we don't want your username and password be there. They should be placed in the `.env` file. (`config.yaml` pulls from `.env`).
 
-Once you have the app password, you need to enter it in the `.env` file, alongside your username. See the next section.
-
-For Microsoft 365 Exchange accounts, we use OATH2 path. The first time you run the program, it will give you a link and a token to enter. Open the link in your browser and enter the generated code, and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
-
-6. Put secrets in `.env` (or your shell environment).
-
-There is a `env.example.txt` file included. First, make a `.env` using it as a template:
+There is a `env.example.txt` file included in the repo. First, make a `.env` file from it as a template:
 ```
 cp env.example.txt .env
 ```
 
+#### Gmail and Yahoo Mail
 
-Anything you put in this file will become an environment variable and the program picks it up that way. 
 
-Examples:
+For Gmail and Yahoo accounts, you must generate an `App Password` (a one-time password dedicated to this application). Follow the official [Gmail](https://support.google.com/mail/answer/185833?hl=en) or [Yahoo Mail](https://help.yahoo.com/kb/generate-password-sln15241.html) instructions to create the App Password.
 
-```env
-# IMAP app passwords
-GMAIL_APP_PASSWORD=...
-YAHOO_APP_PASSWORD=...
+Once generated, add the App Password, along with your username, to the .env file. Note that anything you put in this file will become an environment variable, and the application picks up the information that way. 
 
-# IMAP usernames
-GMAIL_IMAP_USERNAME=...
-YAHOO_IMAP_USERNAME=...
-UIUC_IMAP_USERNAME=...
+#### Microsoft 365 Exchange
 
-# Optional Ollama overrides
-# OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=llama3.1:8b
-# OLLAMA_CONTEXT_LENGTH_TOKENS=4096
+For Microsoft 365 Exchange accounts, we use OATH2 path. The first time you run the program, it will give you a link and a token to enter. Open the link in your browser and enter the generated code, and follow your usual login process. Once done, the program will continue automatically and fetch your emails. The resulting authentication token will be stored in `.msal_token_cache.bin` file. 
 
-# Optional Microsoft 365 device-flow auth, do not change these
-M365_CLIENT_ID=...
-M365_TENANT=organizations
-# optional cache file override
-M365_TOKEN_CACHE=.msal_token_cache.bin
-```
+- There are many other setup options in `config.yaml` which you can customize later.
 
 ## Core Commands
 
