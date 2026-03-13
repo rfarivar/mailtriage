@@ -859,64 +859,67 @@ def main():
 
     run_start = time.perf_counter()
 
-    with ImapClient(acct) as imap:
 
-        if args.cmd == "folders":
-            # Create all unique destination folders from folder_map
-            dests = sorted({v for v in folder_map.values() if v})
-            print(f"Ensuring {len(dests)} folders exist:")
-            for d in dests:
-                print(f"  - {d}")
-                imap.ensure_mailbox(d)
-            print("Done.")
-            return
+    run_dir = ensure_dir(args.outdir)
+    ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    jsonl_path = run_dir / f"{args.account}_{ts}.jsonl"
+    
+    with open(jsonl_path, "w", encoding="utf-8") as fp:
+        
+        with ImapClient(acct) as imap:
 
-        criterion = "UNSEEN" if args.unseen else "ALL"
-        uids = imap.uid_search(criterion, limit=args.limit)
-        print(f"Found {len(uids)} messages ({criterion}).")
-        print()
+            if args.cmd == "folders":
+                # Create all unique destination folders from folder_map
+                dests = sorted({v for v in folder_map.values() if v})
+                print(f"Ensuring {len(dests)} folders exist:")
+                for d in dests:
+                    print(f"  - {d}")
+                    imap.ensure_mailbox(d)
+                print("Done.")
+                return
+
+            criterion = "UNSEEN" if args.unseen else "ALL"
+            uids = imap.uid_search(criterion, limit=args.limit)
+            print(f"Found {len(uids)} messages ({criterion}).")
+            print()
 
 
-        n = len(uids)
-        idxw = 2 * len(str(n)) + 3   # width of "[N/N]"
+            n = len(uids)
+            idxw = 2 * len(str(n)) + 3   # width of "[N/N]"
 
-        def fmt_idx(i: int, n: int, w: int) -> str:
-            return f"[{i}/{n}]".rjust(w)
+            def fmt_idx(i: int, n: int, w: int) -> str:
+                return f"[{i}/{n}]".rjust(w)
 
-        if args.mode == "report" and args.two_pass:
-            header = (
-            f"{'idx':{idxw}}  "
-            f"{'p_bucket':24} {'p_cf':>6}  "
-            f"{'s_bucket':24} {'s_cf':>6}  "
-            f"{'Consensus':24}  "
-            f"{'subject'}"
-        )
-            print(header)
-            print("-"*idxw + "  " + "-"*24 +  "   " + "-"*4 + "   " + "-"*24 +  "  " + "-"*4 + "  "  + "-"*24 + "  " + "-"*60 )
-        elif args.mode == "report":
-            header = (
-            f"{'idx':{idxw}}  "
-            f"{'bucket':24} {'conf':>6}  "
-            f"{'subject'}"
-        )
-            print(header)
-            print("-"*idxw + "  " + "-"*24 +  "   " + "-"*4 + "  "+ "-"*60 )
+            if args.mode == "report" and args.two_pass:
+                header = (
+                f"{'idx':{idxw}}  "
+                f"{'p_bucket':24} {'p_cf':>6}  "
+                f"{'s_bucket':24} {'s_cf':>6}  "
+                f"{'Consensus':24}  "
+                f"{'subject'}"
+            )
+                print(header)
+                print("-"*idxw + "  " + "-"*24 +  "   " + "-"*4 + "   " + "-"*24 +  "  " + "-"*4 + "  "  + "-"*24 + "  " + "-"*60 )
+            elif args.mode == "report":
+                header = (
+                f"{'idx':{idxw}}  "
+                f"{'bucket':24} {'conf':>6}  "
+                f"{'subject'}"
+            )
+                print(header)
+                print("-"*idxw + "  " + "-"*24 +  "   " + "-"*4 + "  "+ "-"*60 )
 
-        run_dir = ensure_dir(args.outdir)
-        ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-        jsonl_path = run_dir / f"{args.account}_{ts}.jsonl"
+            bucket_counts: Dict[str, int] = {b: 0 for b in BUCKETS}
+            processed = 0
+            errors = 0
 
-        bucket_counts: Dict[str, int] = {b: 0 for b in BUCKETS}
-        processed = 0
-        errors = 0
+            chars_to_llm = context_length_tokens * 4  # rough chars per token estimate; adjust as needed based on the model and typical email content
+            chars_to_llm -= len(system_prompt)  # reserve chars for the LLM system prompt
+            chars_to_llm -= 512  # reserve chars for the JSON formatting and other prompt content
+            head_chars = int(chars_to_llm * 0.8)
+            tail_chars = chars_to_llm - head_chars
 
-        chars_to_llm = context_length_tokens * 4  # rough chars per token estimate; adjust as needed based on the model and typical email content
-        chars_to_llm -= len(system_prompt)  # reserve chars for the LLM system prompt
-        chars_to_llm -= 512  # reserve chars for the JSON formatting and other prompt content
-        head_chars = int(chars_to_llm * 0.8)
-        tail_chars = chars_to_llm - head_chars
 
-        with open(jsonl_path, "w", encoding="utf-8") as fp:
             # ----------------------------
             # Phase 0: Fetch emails from the inbox, snapshot into items
             # ----------------------------
@@ -1025,6 +1028,8 @@ def main():
                             it["secondary"] = None
                             it["secondary_raw"] = None
                             it["secondary_error"] = str(e)
+
+        with ImapClient(acct) as imap:
 
             # ----------------------------
             # Phase 3: decide + log + (optional) move
