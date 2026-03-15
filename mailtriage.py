@@ -615,9 +615,23 @@ def should_never_move(sender_email: str, never_domains: List[str], never_senders
     return False
 
 
-def decide_destination(bucket: str, folder_map: Dict[str, str]) -> Optional[str]:
-    return folder_map.get(bucket)
+# def decide_destination(bucket: str, folder_map: Dict[str, str]) -> Optional[str]:
+#     return folder_map.get(bucket)
 
+def is_followup_candidate(tri: TriageResult) -> bool:
+    return tri.action == "keep_in_inbox" and tri.bucket != "uncertain"
+
+
+def decide_destination(
+    tri: TriageResult,
+    folder_map: Dict[str, str],
+    *,
+    followup_enabled: bool,
+    followup_folder: str,
+) -> Optional[str]:
+    if followup_enabled and is_followup_candidate(tri):
+        return followup_folder
+    return folder_map.get(tri.bucket)
 
 def build_email_object(msg: email.message.EmailMessage, body_excerpt: str, body_length: int, url_stats_obj: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -652,26 +666,92 @@ def write_jsonl_line(fp, obj: Dict[str, Any]) -> None:
 
 # ======================================================================
 
-def bucket_dest_group(bucket: str, folder_map: Dict[str, str]) -> str:
+# def bucket_dest_group(bucket: str, folder_map: Dict[str, str]) -> str:
+#     """
+#     Group key for agreement when --agree group is used.
+
+#     We use the destination folder (AI/Promotions, AI/Social, etc.) as the group key,
+#     since that's what the user actually cares about.
+#     Buckets that don't move fall back to a stable label.
+#     """
+#     dest = folder_map.get(bucket)
+#     if dest:
+#         return dest
+
+#     # Non-movable buckets: keep them distinct by bucket name to avoid over-agreement.
+#     return f"INBOX::{bucket}"
+
+# def agree(
+#     primary: TriageResult,
+#     secondary: Optional[TriageResult],
+#     mode: str,
+#     folder_map: Dict[str, str],
+# ) -> Tuple[bool, Optional[str], Optional[str]]:
+#     """
+#     Returns (is_verified, forced_bucket, forced_dest).
+
+#     forced_bucket/forced_dest are used for special overrides like spam quarantine consensus.
+#     """
+#     if secondary is None:
+#         return False, None, None
+
+#     # --- special spam override ---
+#     # If either model says spam_or_scams and the other says a low-risk movable bucket,
+#     # treat it as verified and route to spam_or_scams destination (AI/Quarantine).
+#     movable_ok = {"newsletter_or_marketing", "social_notification", "transactional"}
+#     if (
+#         (primary.bucket == "spam_or_scams" and secondary.bucket in movable_ok)
+#         or (secondary.bucket == "spam_or_scams" and primary.bucket in movable_ok)
+#     ):
+      
+#         forced_bucket = "spam_or_scams"
+#         forced_dest = folder_map.get("spam_or_scams")
+#         # If spam folder isn't configured, we can't safely act on this override.
+#         if forced_dest:
+#             return True, forced_bucket, forced_dest
+#         return False, None, None
+
+#     # --- normal agreement ---
+#     if mode == "bucket":
+#         return (primary.bucket == secondary.bucket), None, None
+
+#     # mode == "group": compare destination intent
+#     g1 = bucket_dest_group(primary.bucket, folder_map)
+#     g2 = bucket_dest_group(secondary.bucket, folder_map)
+#     return (g1 == g2), None, None
+
+def bucket_dest_group(
+    tri: TriageResult,
+    folder_map: Dict[str, str],
+    *,
+    followup_enabled: bool,
+    followup_folder: str,
+) -> str:
     """
     Group key for agreement when --agree group is used.
 
-    We use the destination folder (AI/Promotions, AI/Social, etc.) as the group key,
-    since that's what the user actually cares about.
-    Buckets that don't move fall back to a stable label.
+    We use the actual destination folder as the group key.
     """
-    dest = folder_map.get(bucket)
+    dest = decide_destination(
+        tri,
+        folder_map,
+        followup_enabled=followup_enabled,
+        followup_folder=followup_folder,
+    )
     if dest:
         return dest
 
-    # Non-movable buckets: keep them distinct by bucket name to avoid over-agreement.
-    return f"INBOX::{bucket}"
+    return f"INBOX::{tri.bucket}"
+
 
 def agree(
     primary: TriageResult,
     secondary: Optional[TriageResult],
     mode: str,
     folder_map: Dict[str, str],
+    *,
+    followup_enabled: bool,
+    followup_folder: str,
 ) -> Tuple[bool, Optional[str], Optional[str]]:
     """
     Returns (is_verified, forced_bucket, forced_dest).
@@ -681,32 +761,83 @@ def agree(
     if secondary is None:
         return False, None, None
 
-    # --- special spam override ---
-    # If either model says spam_or_scams and the other says a low-risk movable bucket,
-    # treat it as verified and route to spam_or_scams destination (AI/Quarantine).
+    # special spam override
     movable_ok = {"newsletter_or_marketing", "social_notification", "transactional"}
     if (
         (primary.bucket == "spam_or_scams" and secondary.bucket in movable_ok)
         or (secondary.bucket == "spam_or_scams" and primary.bucket in movable_ok)
     ):
-      
         forced_bucket = "spam_or_scams"
         forced_dest = folder_map.get("spam_or_scams")
-        # If spam folder isn't configured, we can't safely act on this override.
         if forced_dest:
             return True, forced_bucket, forced_dest
         return False, None, None
 
-    # --- normal agreement ---
     if mode == "bucket":
         return (primary.bucket == secondary.bucket), None, None
 
-    # mode == "group": compare destination intent
-    g1 = bucket_dest_group(primary.bucket, folder_map)
-    g2 = bucket_dest_group(secondary.bucket, folder_map)
+    g1 = bucket_dest_group(
+        primary,
+        folder_map,
+        followup_enabled=followup_enabled,
+        followup_folder=followup_folder,
+    )
+    g2 = bucket_dest_group(
+        secondary,
+        folder_map,
+        followup_enabled=followup_enabled,
+        followup_folder=followup_folder,
+    )
     return (g1 == g2), None, None
 
-def verify_reason(it, args, auto_thr, spam_thr, folder_map):
+# def verify_reason(it, args, auto_thr, spam_thr, folder_map):
+#     # only meaningful in two-pass mode
+#     p = it["primary"]
+#     s = it["secondary"]
+
+#     movable_ok = {"newsletter_or_marketing", "social_notification", "transactional"}
+#     if (
+#         (p.bucket == "spam_or_scams" and s and s.bucket in movable_ok)
+#         or (s and s.bucket == "spam_or_scams" and p.bucket in movable_ok)
+#     ):
+#         if folder_map.get("spam_or_scams"):
+#             return "spam_override->quarantine"
+        
+#     # Not shortlisted => we never attempted secondary
+#     if s is None:
+#         # distinguish between "not shortlisted" vs "secondary error"
+#         if it.get("secondary_raw") is None and args.two_pass:
+#             # We can detect "attempted but failed" by a flag; easiest: set it when catching exception
+#             if it.get("secondary_error"):
+#                 return "secondary_error"
+#         return "not_shortlisted"
+
+#     # Agreement checks
+#     if args.agree == "bucket":
+#         if p.bucket != s.bucket:
+#             return f"bucket_mismatch({p.bucket}->{s.bucket})"
+#     else:
+#         g1 = bucket_dest_group(p.bucket, folder_map)
+#         g2 = bucket_dest_group(s.bucket, folder_map)
+#         if g1 != g2:
+#             return f"group_mismatch({g1}->{g2})"
+        
+#     # Confidence checks (final move thresholds)
+#     # (report mode uses move thresholds to define "verified", so show which one failed)
+#     if p.bucket == "spam_or_scams":
+#         if p.confidence < spam_thr:
+#             return f"p_conf<{spam_thr:.2f}"
+#         if s.confidence < spam_thr:
+#             return f"s_conf<{spam_thr:.2f}"
+#     else:
+#         if p.confidence < auto_thr:
+#             return f"p_conf<{auto_thr:.2f}"
+#         if s.confidence < auto_thr:
+#             return f"s_conf<{auto_thr:.2f}"
+
+#     return "verified"
+
+def verify_reason(it, args, auto_thr, spam_thr, folder_map, followup_folder):
     # only meaningful in two-pass mode
     p = it["primary"]
     s = it["secondary"]
@@ -718,28 +849,32 @@ def verify_reason(it, args, auto_thr, spam_thr, folder_map):
     ):
         if folder_map.get("spam_or_scams"):
             return "spam_override->quarantine"
-        
-    # Not shortlisted => we never attempted secondary
+
     if s is None:
-        # distinguish between "not shortlisted" vs "secondary error"
         if it.get("secondary_raw") is None and args.two_pass:
-            # We can detect "attempted but failed" by a flag; easiest: set it when catching exception
             if it.get("secondary_error"):
                 return "secondary_error"
         return "not_shortlisted"
 
-    # Agreement checks
     if args.agree == "bucket":
         if p.bucket != s.bucket:
             return f"bucket_mismatch({p.bucket}->{s.bucket})"
     else:
-        g1 = bucket_dest_group(p.bucket, folder_map)
-        g2 = bucket_dest_group(s.bucket, folder_map)
+        g1 = bucket_dest_group(
+            p,
+            folder_map,
+            followup_enabled=args.followup,
+            followup_folder=followup_folder,
+        )
+        g2 = bucket_dest_group(
+            s,
+            folder_map,
+            followup_enabled=args.followup,
+            followup_folder=followup_folder,
+        )
         if g1 != g2:
             return f"group_mismatch({g1}->{g2})"
-        
-    # Confidence checks (final move thresholds)
-    # (report mode uses move thresholds to define "verified", so show which one failed)
+
     if p.bucket == "spam_or_scams":
         if p.confidence < spam_thr:
             return f"p_conf<{spam_thr:.2f}"
@@ -754,6 +889,38 @@ def verify_reason(it, args, auto_thr, spam_thr, folder_map):
     return "verified"
 
 
+# def is_followup_candidate(tri: TriageResult) -> bool:
+#     return tri.action == "keep_in_inbox" and tri.bucket != "uncertain"
+
+
+# def decide_destination_for_result(
+#     tri: TriageResult,
+#     folder_map: Dict[str, str],
+#     *,
+#     followup_enabled: bool,
+#     followup_folder: str,
+# ) -> Optional[str]:
+#     if followup_enabled and is_followup_candidate(tri):
+#         return followup_folder
+#     return folder_map.get(tri.bucket)
+
+
+# def dest_group_for_result(
+#     tri: TriageResult,
+#     folder_map: Dict[str, str],
+#     *,
+#     followup_enabled: bool,
+#     followup_folder: str,
+# ) -> str:
+#     dest = decide_destination_for_result(
+#         tri,
+#         folder_map,
+#         followup_enabled=followup_enabled,
+#         followup_folder=followup_folder,
+#     )
+#     if dest:
+#         return dest
+#     return f"INBOX::{tri.bucket}"
 
 
 def main():
@@ -776,7 +943,7 @@ def main():
     primary_triage.add_argument("--secondary-model", default="qwen3:8b", help="Secondary model name for two-pass verification.")
     primary_triage.add_argument("--shortlist-threshold", type=float, default=0.85, help="Primary confidence threshold to send to secondary model.")
     primary_triage.add_argument("--agree", choices=["bucket", "group"], default="bucket", help="Require agreement on exact bucket or on move-group.")
-
+    primary_triage.add_argument("--followup", action="store_true", help="Move important keep-in-inbox emails to AI/Followup instead of leaving them in INBOX.")
     fold = sub.add_parser("folders", help="Ensure destination folders exist on the IMAP server.")
     fold.add_argument("--account", required=True, help="Account key from config.yaml")
 
@@ -803,6 +970,7 @@ def main():
     never_domains = policy.get("never_move_from_domains", [])
     never_senders = policy.get("never_move_from_senders", [])
     folder_map = policy.get("folder_map", {})
+    followup_folder = policy.get("followup_folder", "AI/followup")
 
     # read system from system.md
     system_prompt = ""
@@ -857,27 +1025,46 @@ def main():
         print(f"Secondary triage LLM: Ollama={secondary_ollama.base_url}, model={secondary_ollama.model}, context_length_tokens={context_length_tokens}")
     print()
 
+    # run_start = time.perf_counter()
+
+
+    # run_dir = ensure_dir(args.outdir)
+    # ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # jsonl_path = run_dir / f"{args.account}_{ts}.jsonl"
+    
+    # with open(jsonl_path, "w", encoding="utf-8") as fp:
+        
+    #     with ImapClient(acct) as imap:
+
+    #         if args.cmd == "folders":
+    #             # # Create all unique destination folders from folder_map
+    #             # dests = sorted({v for v in folder_map.values() if v})
+    #             # Create all unique destination folders from folder_map plus followup folder
+    #             dests = sorted({v for v in folder_map.values() if v} | ({followup_folder} if followup_folder else set()))
+    #             print(f"Ensuring {len(dests)} folders exist:")
+    #             for d in dests:
+    #                 print(f"  - {d}")
+    #                 imap.ensure_mailbox(d)
+    #             print("Done.")
+    #             return
     run_start = time.perf_counter()
 
+    if args.cmd == "folders":
+        with ImapClient(acct) as imap:
+            dests = sorted({v for v in folder_map.values() if v} | ({followup_folder} if followup_folder else set()))
+            print(f"Ensuring {len(dests)} folders exist:")
+            for d in dests:
+                print(f"  - {d}")
+                imap.ensure_mailbox(d)
+            print("Done.")
+        return
 
     run_dir = ensure_dir(args.outdir)
     ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     jsonl_path = run_dir / f"{args.account}_{ts}.jsonl"
-    
+
     with open(jsonl_path, "w", encoding="utf-8") as fp:
-        
         with ImapClient(acct) as imap:
-
-            if args.cmd == "folders":
-                # Create all unique destination folders from folder_map
-                dests = sorted({v for v in folder_map.values() if v})
-                print(f"Ensuring {len(dests)} folders exist:")
-                for d in dests:
-                    print(f"  - {d}")
-                    imap.ensure_mailbox(d)
-                print("Done.")
-                return
-
             criterion = "UNSEEN" if args.unseen else "ALL"
             uids = imap.uid_search(criterion, limit=args.limit)
             print(f"Found {len(uids)} messages ({criterion}).")
@@ -990,13 +1177,28 @@ def main():
                     p = it["primary"]
                     if p is None:
                         continue
-                    dest = decide_destination(p.bucket, folder_map)
-                    if it["never_move"]:
+                    # dest = decide_destination(p.bucket, folder_map)
+                    # if it["never_move"]:
+                    #     continue
+                    # if not p.auto_move_ok:
+                    #     continue
+                    # if dest is None:
+                    #     continue
+
+                    followup_candidate = args.followup and is_followup_candidate(p)
+                    dest = decide_destination(
+                        p,
+                        folder_map,
+                        followup_enabled=args.followup,
+                        followup_folder=followup_folder,
+                    )
+                    if it["never_move"] and not followup_candidate:
                         continue
-                    if not p.auto_move_ok:
+                    if not p.auto_move_ok and not followup_candidate:
                         continue
                     if dest is None:
                         continue
+
                     # broader than final move gate
                     if p.bucket == "spam_or_scams":
                         if p.confidence >= max(spam_thr, args.shortlist_threshold):
@@ -1067,33 +1269,71 @@ def main():
                         "model": secondary_ollama.model if secondary_ollama else "secondary",
                     }
 
-                dest = decide_destination(p.bucket, folder_map)
+                # dest = decide_destination(p.bucket, folder_map)
+
+                # forced_bucket = None
+                # forced_dest = None
+
+                # verified = True
+                # if args.two_pass:
+                #     verified, forced_bucket, forced_dest = agree(p, s, args.agree, folder_map)
+
+                # # If spam override triggered, use the forced destination (AI/Quarantine) and treat bucket as spam_or_scams
+                # effective_bucket = forced_bucket or p.bucket
+                # effective_dest = forced_dest or decide_destination(effective_bucket, folder_map)
+
+                # # Final move gate: must be verified in two-pass mode
+                # move_ok = (
+                #     (args.mode == "move")
+                #     and (not dry_run)
+                #     and (not it["never_move"])
+                #     and (effective_dest is not None)
+                #     and (p.auto_move_ok or forced_bucket is not None)
+                #     and verified
+                #     and (
+                #         (effective_bucket == "spam_or_scams" and p.confidence >= spam_thr)
+                #         or (effective_bucket != "spam_or_scams" and p.confidence >= auto_thr)
+                #     )
+                # )
+
+                followup_candidate = args.followup and is_followup_candidate(p)
+
+                dest = decide_destination(
+                    p,
+                    folder_map,
+                    followup_enabled=args.followup,
+                    followup_folder=followup_folder,
+                )
 
                 forced_bucket = None
                 forced_dest = None
 
                 verified = True
                 if args.two_pass:
-                    verified, forced_bucket, forced_dest = agree(p, s, args.agree, folder_map)
+                    verified, forced_bucket, forced_dest = agree(
+                        p,
+                        s,
+                        args.agree,
+                        folder_map,
+                        followup_enabled=args.followup,
+                        followup_folder=followup_folder,
+                    )
 
-                # If spam override triggered, use the forced destination (AI/Quarantine) and treat bucket as spam_or_scams
                 effective_bucket = forced_bucket or p.bucket
-                effective_dest = forced_dest or decide_destination(effective_bucket, folder_map)
+                effective_dest = forced_dest or dest
 
-                # Final move gate: must be verified in two-pass mode
                 move_ok = (
                     (args.mode == "move")
                     and (not dry_run)
-                    and (not it["never_move"])
+                    and (not it["never_move"] or followup_candidate)
                     and (effective_dest is not None)
-                    and (p.auto_move_ok or forced_bucket is not None)
+                    and (p.auto_move_ok or forced_bucket is not None or followup_candidate)
                     and verified
                     and (
                         (effective_bucket == "spam_or_scams" and p.confidence >= spam_thr)
                         or (effective_bucket != "spam_or_scams" and p.confidence >= auto_thr)
                     )
                 )
-
 
                 # Write one record per email including both model outputs
                 record = {
@@ -1148,7 +1388,8 @@ def main():
                     pconf = f"{p.confidence:.2f}"
                     sconf = f"{s.confidence:.2f}" if s else "—"
                     sbucket = s.bucket if s else "—"
-                    why = verify_reason(it, args, auto_thr, spam_thr, folder_map)
+                    # why = verify_reason(it, args, auto_thr, spam_thr, folder_map)
+                    why = verify_reason(it, args, auto_thr, spam_thr, folder_map, followup_folder)
 
                     # print(f"[{it['idx']:>2}/{len(uids)}] {p.bucket:25} p={pconf:>4}  s={sbucket:25} s={sconf:>4}  <== {why:24}  {it['subj'][:40]}")
                     idx_str = fmt_idx(it["idx"], n, idxw)
@@ -1187,7 +1428,9 @@ def main():
                     else:
                         if dry_run:
                             print("  (not moved) dry_run")
-                        elif it["never_move"]:
+                        # elif it["never_move"]:
+                        #     print("  (not moved) blocked by never-move allowlist")
+                        elif it["never_move"] and not followup_candidate:
                             print("  (not moved) blocked by never-move allowlist")
                         elif args.two_pass and not verified:
                             print("  (not moved) two-pass did not verify")

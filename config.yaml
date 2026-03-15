@@ -18,6 +18,7 @@ policy:
     social_notification: "AI/Social"
     spam_or_scams: "AI/Quarantine"
     transactional: "AI/Receipts"
+  followup_folder: "AI/Followup"
 
 accounts:
   yahoo:
