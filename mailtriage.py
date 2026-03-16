@@ -449,25 +449,39 @@ class ImapAccount:
             raise RuntimeError(f"Missing env var for IMAP password: {self.password_env}")
         return pw
 
+    # def get_access_token(self) -> str:
+    #     """Get OAuth2 access token from env or via M365 device flow."""
+    #     if not self.access_token_env:
+    #         raise RuntimeError("access_token_env not configured for xoauth2 auth")
+    #
+    #     # Check if token is already in environment (user set it manually)
+    #     token = os.getenv(self.access_token_env)
+    #     if token:
+    #         return token
+    #
+    #     # Otherwise, use M365 device flow to get a fresh token
+    #     from m365_oauth import get_m365_access_token
+    #     scopes = ["https://outlook.office.com/IMAP.AccessAsUser.All"]
+    #     token = get_m365_access_token(scopes)
+    #
+    #     # Cache it in the environment for this session
+    #     os.environ[self.access_token_env] = token
+    #     return token
+
     def get_access_token(self) -> str:
         """Get OAuth2 access token from env or via M365 device flow."""
         if not self.access_token_env:
             raise RuntimeError("access_token_env not configured for xoauth2 auth")
-        
-        # Check if token is already in environment (user set it manually)
+
+        # Manual override only: if the user explicitly set a token in the env, use it.
         token = os.getenv(self.access_token_env)
         if token:
             return token
-        
-        # Otherwise, use M365 device flow to get a fresh token
-        from m365_oauth import get_m365_access_token
-        scopes = ["https://outlook.office.com/IMAP.AccessAsUser.All"]
-        token = get_m365_access_token(scopes)
-        
-        # Cache it in the environment for this session
-        os.environ[self.access_token_env] = token
-        return token
 
+        # Otherwise, always ask MSAL for a token for each new connection.
+        # MSAL will use its persisted cache and silently refresh if needed.
+        scopes = ["https://outlook.office.com/IMAP.AccessAsUser.All"]
+        return get_m365_access_token(scopes)
 
 class ImapClient:
     def __init__(self, acct: ImapAccount):
@@ -538,9 +552,16 @@ class ImapClient:
             raise RuntimeError(f"Failed to fetch message {msg_id!r}")
         return data[0][1]
     
+    # def uid_fetch_rfc822(self, uid: bytes) -> bytes:
+    #     assert self.conn
+    #     typ, data = self.conn.uid("FETCH", uid, "(RFC822)")
+    #     if typ != "OK" or not data or not data[0]:
+    #         raise RuntimeError(f"Failed to UID FETCH {uid!r}")
+    #     return data[0][1]
+
     def uid_fetch_rfc822(self, uid: bytes) -> bytes:
         assert self.conn
-        typ, data = self.conn.uid("FETCH", uid, "(RFC822)")
+        typ, data = self.conn.uid("FETCH", uid, "(BODY.PEEK[])")
         if typ != "OK" or not data or not data[0]:
             raise RuntimeError(f"Failed to UID FETCH {uid!r}")
         return data[0][1]
@@ -589,17 +610,35 @@ class ImapClient:
         self.conn.store(msg_id, "+FLAGS", r"(\Deleted)")
         self.conn.expunge()
 
-    def uid_move_message(self, uid: bytes, dest_mailbox: str) -> None:
+    # def uid_move_message(self, uid: bytes, dest_mailbox: str) -> None:
+    #     assert self.conn
+    #     self.ensure_mailbox(dest_mailbox)
+    #     typ, _ = self.conn.uid("COPY", uid, dest_mailbox)
+    #     if typ != "OK":
+    #         raise RuntimeError(f"UID COPY failed to {dest_mailbox} for uid {uid!r}")
+    #     typ, _ = self.conn.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
+    #     if typ != "OK":
+    #         raise RuntimeError(f"UID STORE failed for uid {uid!r}")
+    #     self.conn.expunge()
+
+    def uid_move_message(self, uid: bytes, dest_mailbox: str, mark_unread: bool = False) -> None:
         assert self.conn
         self.ensure_mailbox(dest_mailbox)
+
+        if mark_unread:
+            typ, _ = self.conn.uid("STORE", uid, "-FLAGS.SILENT", r"(\Seen)")
+            if typ != "OK":
+                raise RuntimeError(f"UID STORE -FLAGS \\Seen failed for uid {uid!r}")
+
         typ, _ = self.conn.uid("COPY", uid, dest_mailbox)
         if typ != "OK":
             raise RuntimeError(f"UID COPY failed to {dest_mailbox} for uid {uid!r}")
+
         typ, _ = self.conn.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
         if typ != "OK":
             raise RuntimeError(f"UID STORE failed for uid {uid!r}")
-        self.conn.expunge()
 
+        self.conn.expunge()
 
 # -----------------------------
 # Policy + main loop
@@ -888,7 +927,35 @@ def verify_reason(it, args, auto_thr, spam_thr, folder_map, followup_folder):
 
     return "verified"
 
+def move_with_reconnect(
+    imap: ImapClient,
+    acct: ImapAccount,
+    uid: bytes,
+    dest_mailbox: str,
+    *,
+    mark_unread: bool = False,
+) -> ImapClient:
+    """
+    Try move on the current IMAP client.
+    If the server dropped the connection, replace the client with a fresh one
+    and retry once. Return the live client to keep using for subsequent emails.
+    """
+    try:
+        imap.uid_move_message(uid, dest_mailbox, mark_unread=mark_unread)
+        return imap
+    except imaplib.IMAP4.abort:
+        print("  IMAP connection dropped; reconnecting and retrying once...")
 
+        # Best-effort close the dead connection object
+        try:
+            imap.__exit__(None, None, None)
+        except Exception:
+            pass
+
+        new_imap = ImapClient(acct)
+        new_imap.__enter__()
+        new_imap.uid_move_message(uid, dest_mailbox, mark_unread=mark_unread)
+        return new_imap
 # def is_followup_candidate(tri: TriageResult) -> bool:
 #     return tri.action == "keep_in_inbox" and tri.bucket != "uncertain"
 
@@ -1231,7 +1298,10 @@ def main():
                             it["secondary_raw"] = None
                             it["secondary_error"] = str(e)
 
-        with ImapClient(acct) as imap:
+        # with ImapClient(acct) as imap:
+        move_imap = ImapClient(acct)
+        move_imap.__enter__()
+        try:
 
             # ----------------------------
             # Phase 3: decide + log + (optional) move
@@ -1419,10 +1489,42 @@ def main():
 
                     print(f"  dest: {effective_dest}")
 
+                    # if move_ok:
+                    #     # print(f"  MOVING -> {effective_dest}")
+                    #     # try:
+                    #     #     imap.uid_move_message(it["uid"], effective_dest)
+                    #     # except imaplib.IMAP4.abort:
+                    #     #     with ImapClient(acct) as imap:
+                    #     #         imap.uid_move_message(it["uid"], effective_dest)
+                    #     # except Exception as e:
+                    #     #     print(f"  MOVE FAILED: {e}")
+                    #     print(f"  MOVING -> {effective_dest}")
+                    #     try:
+                    #         imap.uid_move_message(
+                    #             it["uid"],
+                    #             effective_dest,
+                    #             mark_unread=(followup_candidate and effective_dest == followup_folder),
+                    #         )
+                    #     except imaplib.IMAP4.abort:
+                    #         print("  IMAP connection dropped; reconnecting and retrying once...")
+                    #         with ImapClient(acct) as retry_imap:
+                    #             retry_imap.uid_move_message(
+                    #                 it["uid"],
+                    #                 effective_dest,
+                    #                 mark_unread=(followup_candidate and effective_dest == followup_folder),
+                    #             )
+                    #     except Exception as e:
+                    #         print(f"  MOVE FAILED: {e}")
                     if move_ok:
                         print(f"  MOVING -> {effective_dest}")
                         try:
-                            imap.uid_move_message(it["uid"], effective_dest)
+                            move_imap = move_with_reconnect(
+                                move_imap,
+                                acct,
+                                it["uid"],
+                                effective_dest,
+                                mark_unread=(followup_candidate and effective_dest == followup_folder),
+                            )
                         except Exception as e:
                             print(f"  MOVE FAILED: {e}")
                     else:
@@ -1436,6 +1538,8 @@ def main():
                             print("  (not moved) two-pass did not verify")
                         else:
                             print("  (not moved) did not meet thresholds / no destination")
+        finally:
+            move_imap.__exit__(None, None, None)
 
     elapsed_s = time.perf_counter() - run_start
     print(f"\nTotal time: {elapsed_s:.1f}s ({elapsed_s/60:.2f} min)")

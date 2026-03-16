@@ -180,6 +180,8 @@ If you have a GPU with VRAM, the following need to fit in the GPU memory:
 - Quantized model weights. For an 8-billion parameter class model (like llama3.1:8b or qwen3:8b), that's about 4 ~ 4.5GB.
 - Context window. The exact value depends on the size of the hidden state of each model (4096 for Llama3.1), the number of transformer layers (e.g. 32 layers), the number of attention heads, and the type of attention heads (MHA, GQA, MQA). For the models we focus on here and for a 4096 token context, they typically require about 2 to 4 GB of additional VRAM. 
 
+As for regular system RAM, in a run of 1000 emails, the process ended up using 140MB of RAM at its peak, which is very low. Per email, the RAM usage is around 100KB. The Ollama process 
+itself uses around 750MB of RAM with a run of 1000 emails.
 
 5. Two-pass run
 
